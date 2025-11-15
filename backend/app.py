@@ -1,52 +1,60 @@
-from flask import Flask, jsonify
-from flask_cors import CORS
 from dotenv import load_dotenv
-from pymongo import MongoClient
 import os
+from datetime import datetime
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from pymongo import MongoClient
+from services.gemini_service import GeminiService
 
 load_dotenv()
+
+# Initialize Gemini service
+gemini_service = None
+try:
+    gemini_service = GeminiService()
+    print("✅ Gemini API configured")
+except ValueError as e:
+    print(f"⚠️ Warning: {e}")
 
 def create_app():
     app = Flask(__name__)
     CORS(app)
     
-    app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY')
+    # MongoDB connection
+    client = MongoClient(os.getenv('MONGODB_URI'))
+    db = client['baymax']
     
-    # Connect to MongoDB
     try:
-        mongodb_uri = os.getenv('MONGODB_URI')
-        client = MongoClient(
-            mongodb_uri,
-            tls=True,
-            tlsAllowInvalidCertificates=True,
-            serverSelectionTimeoutMS=10000
-        )
-        # Test the connection
         client.admin.command('ping')
-        app.db = client['baymax']
         print("✅ Connected to MongoDB successfully!")
     except Exception as e:
-        print(f"❌ MongoDB connection error: {e}")
-        app.db = None
+        print(f"❌ MongoDB connection failed: {e}")
     
-    @app.route('/')
-    def index():
-        return jsonify({"message": "Baymax API is running!"})
-    
-    @app.route('/health')
+    # Routes
+    @app.route('/health', methods=['GET'])
     def health():
-        db_status = "disconnected"
-        if app.db is not None:
-            try:
-                app.db.client.admin.command('ping')
-                db_status = "connected"
-            except:
-                pass
+        return jsonify({'status': 'healthy', 'database': 'connected'})
+    
+    @app.route('/api/chat', methods=['POST'])
+    def chat():
+        """Chat endpoint for Gemini integration"""
+        if gemini_service is None:
+            return jsonify({'error': 'Gemini API not configured'}), 500
         
-        return jsonify({
-            "status": "healthy",
-            "database": db_status
-        })
+        data = request.json  # NOW THIS IS INSIDE A ROUTE - IT WORKS!
+        message = data.get('message')
+        
+        if not message:
+            return jsonify({'error': 'No message provided'}), 400
+        
+        try:
+            response = gemini_service.chat(message)
+            return jsonify({
+                'response': response,
+                'timestamp': datetime.now().isoformat()
+            })
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
     
     return app
 
