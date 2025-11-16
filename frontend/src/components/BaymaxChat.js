@@ -1,38 +1,91 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./BaymaxChat.css";
 
 function BaymaxChat() {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      sender: "bot",
-      text: "Hi, I’m Baymax. How can I help with your health today?",
-      time: "10:30 AM",
-    },
-    {
-      id: 2,
-      sender: "user",
-      text: "Show me a summary of my recent logs.",
-      time: "10:31 AM",
-    },
-  ]);
+  // 🔧 CHANGE THIS - Load from localStorage on startup
+  const [messages, setMessages] = useState(() => {
+    const saved = localStorage.getItem('baymax_chat_history');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    // Only use these if localStorage is empty
+    return [
+      {
+        id: 1,
+        sender: "bot",
+        text: "Hi, I'm Baymax. How can I help with your health today?",
+        time: "10:30 AM",
+      },
+      {
+        id: 2,
+        sender: "user",
+        text: "Show me a summary of my recent logs.",
+        time: "10:31 AM",
+      },
+    ];
+  });
+  
   const [input, setInput] = useState("");
 
-  const handleSend = (e) => {
+  // Save to localStorage whenever messages change
+  useEffect(() => {
+    localStorage.setItem('baymax_chat_history', JSON.stringify(messages));
+  }, [messages]);
+
+ const handleSend = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
 
-    // 프론트용 더미 전송 처리 (나중에 백엔드 연결)
-    const newMessage = {
+    const userInput = input.trim();
+    
+    // Add user message
+    const userMessage = {
       id: Date.now(),
       sender: "user",
-      text: input.trim(),
+      text: userInput,
       time: "Now",
     };
-
-    setMessages((prev) => [...prev, newMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInput("");
+
+    // Call Gemini API
+    try {
+      const response = await fetch('http://localhost:5001/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userInput })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        const botMessage = {
+          id: Date.now() + 1,
+          sender: "bot",
+          text: data.response,
+          time: "Now"
+        };
+        setMessages((prev) => [...prev, botMessage]);
+      } else {
+        const errorMessage = {
+          id: Date.now() + 1,
+          sender: "bot",
+          text: "Error: " + (data.error || 'Failed to get response'),
+          time: "Now"
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+      }
+    } catch (error) {
+      const errorMessage = {
+        id: Date.now() + 1,
+        sender: "bot",
+        text: "Connection error: " + error.message,
+        time: "Now"
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    }
   };
+
 
   return (
     <div className="chat-page">

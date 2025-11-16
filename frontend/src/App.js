@@ -1,15 +1,13 @@
-import Baymax from "./pages/Baymax";
+import BaymaxChat from "./components/BaymaxChat";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Nav from "./Nav";
 import Team from "./Team/Team";
 import Home from "./Home/Home";
-import BaymaxChat from "./Baymax/BaymaxChat";
 import Footer from "./Footer/Footer";
 import Upload from "./Upload/Upload";
 import Export from "./Export/Export";
 import Graph from "./Graph/Graph";
 import Log from "./Log/Log";
-
 
 function App() {
   return (
@@ -19,7 +17,7 @@ function App() {
         <div className="app-content">
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/baymax" element={<BaymaxChat />} />
+            <Route path="/baymax" element={<BaymaxChat />} />  {/* This is correct */}
             <Route path="/upload" element={<Upload />} />
             <Route path="/export" element={<Export />} />
             <Route path="/graph" element={<Graph />} />
@@ -32,6 +30,5 @@ function App() {
     </Router>
   );
 }
-
 
 export default App;
