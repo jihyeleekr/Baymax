@@ -1,58 +1,104 @@
 .team-container {
-  padding: 60px;
-  background-color: #222831;
+  padding: 80px 40px 100px;
+  background-color: #1f242b;
   min-height: 100vh;
   color: #eeeeee;
   text-align: center;
 }
 
 .team-title {
-  font-size: 36px;
-  font-weight: bold;
-  margin-bottom: 40px;
+  font-size: 40px;
+  font-weight: 800;
+  margin: 0;
 }
+
+.team-intro {
+  font-size: 20px;
+  max-width: 900px;
+  margin: 40px auto 60px;
+  line-height: 1.75;
+  opacity: 0.95;
+  text-align: center;
+}
+
+/* 밑에 작게 포인트 라인 추가하고 싶으면 주석 해제해서 사용해도 됨 */
+
+.team-intro::after {
+  content: "";
+  display: block;
+  width: 80px;
+  height: 3px;
+  background-color: #76abae;
+  margin: 24px auto 0;
+  border-radius: 999px;
+}
+
 
 .team-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 30px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 32px;
   justify-items: center;
 }
 
 .team-card {
-  background-color: #393e46;
-  padding: 24px;
-  border-radius: 16px;
-  width: 240px;
-  transition: transform 0.2s ease, background-color 0.2s ease;
+  background-color: #2a3037;
+  padding: 28px 24px 24px;
+  border-radius: 20px;
+  width: 260px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  transition: transform 0.18s ease, box-shadow 0.18s ease,
+    background-color 0.18s ease;
 }
 
 .team-card:hover {
   transform: translateY(-6px);
-  background-color: #4a5058;
+  background-color: #343b44;
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.55);
 }
 
 .team-avatar {
   width: 80px;
   height: 80px;
   background-color: #76abae;
-  color: #222831;
+  color: #1f242b;
   border-radius: 50%;
-  font-size: 28px;
-  font-weight: bold;
+  font-size: 32px;
+  font-weight: 700;
   display: flex;
-  justify-content: center;
   align-items: center;
-  margin: 0 auto 16px auto;
+  justify-content: center;
+  margin: 0 auto 18px auto;
 }
 
 .team-name {
-  font-size: 20px;
-  font-weight: bold;
-  margin: 8px 0 4px;
+  font-size: 19px;
+  font-weight: 700;
+  margin: 4px 0 6px;
 }
 
 .team-role {
-  font-size: 16px;
-  opacity: 0.8;
+  font-size: 15px;
+  opacity: 0.9;
+  line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+  .team-container {
+    padding: 60px 20px 80px;
+  }
+
+  .team-title {
+    font-size: 32px;
+  }
+
+  .team-intro {
+    font-size: 18px;
+    margin: 30px auto 40px;
+  }
+
+  .team-card {
+    width: 100%;
+    max-width: 320px;
+  }
 }

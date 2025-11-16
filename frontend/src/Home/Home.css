@@ -1,0 +1,146 @@
+.home-hero {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 40px;
+  /* ⬅ 간격 약간 더 줄임 */
+  padding: 30px 50px 40px;
+  /* ⬅ 위·아래 padding 더 줄인 버전 */
+  background: linear-gradient(135deg, #222831, #1a1f25);
+  color: #eeeeee;
+  min-height: calc(100vh - 110px);
+  /* ⬅ 화면 높이에 더 정확히 맞게 */
+}
+
+.home-left {
+  flex: 1.2;
+  max-width: 580px;
+}
+
+.home-tagline {
+  font-size: 16px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #76abae;
+  margin-bottom: 10px;
+}
+
+.home-title {
+  font-size: 48px;
+  font-weight: 800;
+  margin: 0 0 16px;
+}
+
+.home-subtitle {
+  font-size: 18px;
+  line-height: 1.75;
+  opacity: 0.9;
+  margin-bottom: 28px;
+}
+
+.home-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.home-btn {
+  padding: 12px 22px;
+  border-radius: 999px;
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.home-btn.primary {
+  background-color: #76abae;
+  color: #222831;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.home-btn.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.6);
+}
+
+.home-btn.secondary {
+  background-color: transparent;
+  color: #eeeeee;
+  border-color: #76abae;
+}
+
+.home-btn.secondary:hover {
+  background-color: #76abae33;
+}
+
+.home-highlights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 14px;
+  opacity: 0.9;
+  margin-bottom: 10px;
+}
+
+.home-highlights span {
+  background-color: #393e46;
+  padding: 6px 12px;
+  border-radius: 999px;
+}
+
+.home-right {
+  flex: 1;
+  display: flex;
+  justify-content: flex-start;
+  margin-left: 80px;
+}
+
+.home-card {
+  background-color: #393e46;
+  border-radius: 20px;
+  padding: 36px 32px 28px;
+  width: 460px;
+  max-width: 520px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
+}
+
+.home-card h3 {
+  margin-top: 0;
+  margin-bottom: 18px;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.home-card ul {
+  margin: 0;
+  padding-left: 22px;
+  line-height: 1.75;
+  font-size: 17px;
+}
+
+@media (max-width: 900px) {
+  .home-hero {
+    flex-wrap: wrap;
+    padding: 60px 30px;
+    gap: 40px;
+  }
+
+  .home-right {
+    margin-left: 0;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .home-card {
+    width: 100%;
+    max-width: 420px;
+  }
+
+  .home-title {
+    font-size: 38px;
+  }
+}
