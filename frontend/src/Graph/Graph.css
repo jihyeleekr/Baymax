@@ -1,0 +1,165 @@
+.graph-page {
+  background: linear-gradient(135deg, #222831, #1a1f25);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 40px 60px 16px;
+  color: #eeeeee;
+  min-height: 520px;
+}
+
+.graph-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.graph-title {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+
+.graph-subtitle {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+/* -------- Date range -------- */
+
+.date-range {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.date-label {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  color: #9ea5ad;
+}
+
+/* input + icon wrapper */
+.date-input-wrapper {
+  margin-top: 4px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* native date input */
+.date-input-wrapper input[type="date"] {
+  width: 110px;
+  padding: 7px 40px 7px 12px;
+  border-radius: 999px;
+  border: 1px solid #2c3139;
+  background-color: #181c22;
+  color: #eeeeee;
+  font-size: 13px;
+  outline: none;
+}
+
+/* hide default calendar icon in WebKit */
+.date-input-wrapper input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.date-input-wrapper input[type="date"]:focus {
+  border-color: #76abae;
+}
+
+/* yellow calendar icon (Material Symbols) */
+.date-input-wrapper .calendar-icon {
+  position: absolute;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Material Symbols Outlined";
+  font-size: 20px;
+  color: #eac452;
+  cursor: pointer;
+  user-select: none;
+}
+
+.date-separator {
+  color: #9ea5ad;
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+
+/* -------- Centered status (loading / error / empty) -------- */
+
+.graph-status-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.graph-error,
+.graph-empty,
+.graph-loading {
+  font-size: 14px;
+  color: #9ea5ad;
+  margin: 4px 0;
+}
+
+.graph-error {
+  margin-bottom: 6px;
+}
+
+/* -------- Cards / grid -------- */
+
+.graph-grid {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.graph-card {
+  background-color: #1f242b;
+  border-radius: 18px;
+  padding: 16px 18px 12px;
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.5);
+}
+
+.graph-card-header h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.graph-card-header p {
+  margin: 4px 0 10px;
+  font-size: 12px;
+  color: #9ea5ad;
+}
+
+/* -------- Responsive -------- */
+
+@media (max-width: 900px) {
+  .graph-page {
+    padding: 24px 16px 12px;
+  }
+
+  .graph-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .graph-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .date-input-wrapper input[type="date"] {
+    width: 100%;
+  }
+}

@@ -1,22 +1,36 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Nav from "./Nav";
 import Team from "./Team/Team";
+import Home from "./Home/Home";
+import BaymaxChat from "./Baymax/BaymaxChat";
+import Footer from "./Footer/Footer";
+import Upload from "./Upload/Upload";
+import Export from "./Export/Export";
+import Graph from "./Graph/Graph";
+import Log from "./Log/Log";
+
 
 function App() {
   return (
     <Router>
-      <Nav />
-      <Routes>
-        <Route path="/" element={<h1>Home Page</h1>} />
-        <Route path="/baymax" element={<h1>Baymax Chatbot</h1>} />
-        <Route path="/graph" element={<h1>Graph Page</h1>} />
-        <Route path="/log" element={<h1>Log Page</h1>} />
-        <Route path="/upload" element={<h1>Upload Page</h1>} />
-        <Route path="/export" element={<h1>Export Page</h1>} />
-        <Route path="/team" element={<Team />} />
-      </Routes>
+      <div className="App">
+        <Nav />
+        <div className="app-content">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/baymax" element={<BaymaxChat />} />
+            <Route path="/upload" element={<Upload />} />
+            <Route path="/export" element={<Export />} />
+            <Route path="/graph" element={<Graph />} />
+            <Route path="/log" element={<Log />} />
+            <Route path="/team" element={<Team />} />
+          </Routes>
+        </div>
+        <Footer />
+      </div>
     </Router>
   );
 }
+
 
 export default App;
