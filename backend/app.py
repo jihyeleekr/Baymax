@@ -63,7 +63,6 @@ def create_app():
             })
         except Exception as e:
             return jsonify({'error': str(e)}), 500
-<<<<<<< HEAD
     
     @app.route('/api/health-logs', methods=['GET'])
     def get_health_logs():
@@ -387,8 +386,6 @@ def create_app():
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     
-=======
-        
     @app.route("/api/health-logs", methods=["GET"])
     def get_health_logs():
         """
@@ -446,7 +443,7 @@ def create_app():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
->>>>>>> c41ed77 (Connect backend to MongoDB and add health logs API)
+
     return app
 
 
