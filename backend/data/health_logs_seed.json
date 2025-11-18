@@ -318,5 +318,13 @@
     "mood": 5,
     "took_medication": true,
     "vital_bpm": 69
+  },
+  {
+    "date": "12-30-2025",
+    "hours_of_sleep": 6.7,
+    "symptom": null,
+    "mood": 2,
+    "took_medication": true,
+    "vital_bpm": 80
   }
 ]
