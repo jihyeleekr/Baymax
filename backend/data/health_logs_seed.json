@@ -158,5 +158,165 @@
     "mood": 5,
     "took_medication": true,
     "vital_bpm": 69
+  },
+  {
+    "date": "11-21-2025",
+    "hours_of_sleep": 6.7,
+    "symptom": "Mild eye strain from screen time",
+    "mood": 3,
+    "took_medication": true,
+    "vital_bpm": 77
+  },
+  {
+    "date": "11-22-2025",
+    "hours_of_sleep": 7.9,
+    "symptom": "No major symptoms, relaxed weekend",
+    "mood": 5,
+    "took_medication": true,
+    "vital_bpm": 72
+  },
+  {
+    "date": "11-23-2025",
+    "hours_of_sleep": 5.2,
+    "symptom": "Stayed up late watching lectures",
+    "mood": 2,
+    "took_medication": false,
+    "vital_bpm": 85
+  },
+  {
+    "date": "11-24-2025",
+    "hours_of_sleep": 6.4,
+    "symptom": "Slight neck stiffness",
+    "mood": 3,
+    "took_medication": true,
+    "vital_bpm": 79
+  },
+  {
+    "date": "11-25-2025",
+    "hours_of_sleep": 7.1,
+    "symptom": "Feeling okay, light fatigue in evening",
+    "mood": 4,
+    "took_medication": true,
+    "vital_bpm": 74
+  },
+  {
+    "date": "11-26-2025",
+    "hours_of_sleep": 4.8,
+    "symptom": "Stress from upcoming deadlines",
+    "mood": 2,
+    "took_medication": false,
+    "vital_bpm": 88
+  },
+  {
+    "date": "11-27-2025",
+    "hours_of_sleep": 8.3,
+    "symptom": "Well-rested, no symptoms",
+    "mood": 5,
+    "took_medication": true,
+    "vital_bpm": 70
+  },
+  {
+    "date": "11-28-2025",
+    "hours_of_sleep": 6.0,
+    "symptom": "Mild back discomfort from sitting too long",
+    "mood": 3,
+    "took_medication": true,
+    "vital_bpm": 78
+  },
+  {
+    "date": "11-29-2025",
+    "hours_of_sleep": 7.5,
+    "symptom": "Slight sore throat in the morning",
+    "mood": 3,
+    "took_medication": true,
+    "vital_bpm": 76
+  },
+  {
+    "date": "11-30-2025",
+    "hours_of_sleep": 6.9,
+    "symptom": "Tired after a busy day outside",
+    "mood": 4,
+    "took_medication": false,
+    "vital_bpm": 82
+  },
+  {
+    "date": "12-01-2025",
+    "hours_of_sleep": 7.2,
+    "symptom": "No major symptoms, normal day",
+    "mood": 4,
+    "took_medication": true,
+    "vital_bpm": 73
+  },
+  {
+    "date": "12-02-2025",
+    "hours_of_sleep": 5.6,
+    "symptom": "Headache after long study session",
+    "mood": 2,
+    "took_medication": true,
+    "vital_bpm": 87
+  },
+  {
+    "date": "12-03-2025",
+    "hours_of_sleep": 8.0,
+    "symptom": "Feeling energetic",
+    "mood": 5,
+    "took_medication": true,
+    "vital_bpm": 68
+  },
+  {
+    "date": "12-04-2025",
+    "hours_of_sleep": 6.3,
+    "symptom": "Mild congestion, possible allergy",
+    "mood": 3,
+    "took_medication": true,
+    "vital_bpm": 80
+  },
+  {
+    "date": "12-05-2025",
+    "hours_of_sleep": 4.5,
+    "symptom": "Very tired and a bit dizzy in the morning",
+    "mood": 1,
+    "took_medication": false,
+    "vital_bpm": 90
+  },
+  {
+    "date": "12-06-2025",
+    "hours_of_sleep": 7.8,
+    "symptom": "Recovering, feeling much better",
+    "mood": 4,
+    "took_medication": true,
+    "vital_bpm": 71
+  },
+  {
+    "date": "12-07-2025",
+    "hours_of_sleep": 6.1,
+    "symptom": "Slight muscle soreness from workout",
+    "mood": 3,
+    "took_medication": true,
+    "vital_bpm": 79
+  },
+  {
+    "date": "12-08-2025",
+    "hours_of_sleep": 7.0,
+    "symptom": "No notable symptoms",
+    "mood": 4,
+    "took_medication": true,
+    "vital_bpm": 75
+  },
+  {
+    "date": "12-09-2025",
+    "hours_of_sleep": 5.9,
+    "symptom": "Eyes feel dry from studying late",
+    "mood": 2,
+    "took_medication": false,
+    "vital_bpm": 83
+  },
+  {
+    "date": "12-10-2025",
+    "hours_of_sleep": 8.2,
+    "symptom": "Well-rested and calm",
+    "mood": 5,
+    "took_medication": true,
+    "vital_bpm": 69
   }
 ]

@@ -15,6 +15,15 @@ import "./Graph.css";
 // Base URL for the backend API
 const API_BASE = process.env.REACT_APP_API_BASE_URL || "http://127.0.0.1:5001";
 
+// Category options for the filter UI
+const CATEGORY_OPTIONS = [
+  { id: "sleep", label: "Sleep" },
+  { id: "vital", label: "Heart rate" },
+  { id: "mood", label: "Mood" },
+  { id: "medication", label: "Medication" },
+  { id: "condition", label: "Condition" },
+];
+
 function Graph() {
   const today = new Date();
   const thirtyDaysAgo = new Date();
@@ -31,6 +40,11 @@ function Graph() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Which categories are currently visible
+  const [selectedCategories, setSelectedCategories] = useState(
+    CATEGORY_OPTIONS.map((c) => c.id) // all enabled by default
+  );
+
   const startInputRef = useRef(null);
   const endInputRef = useRef(null);
 
@@ -46,6 +60,26 @@ function Graph() {
 
   // Front-end validation: "From" must be <= "To"
   const isRangeInvalid = startDate && endDate && startDate > endDate;
+
+  // Toggle a category on/off (but keep at least one selected)
+  const handleToggleCategory = (id) => {
+    setSelectedCategories((prev) => {
+      const isActive = prev.includes(id);
+
+      // If turning off and it's the last active category, block it
+      if (isActive && prev.length === 1) {
+        return prev;
+      }
+
+      // Turn off
+      if (isActive) {
+        return prev.filter((c) => c !== id);
+      }
+
+      // Turn on
+      return [...prev, id];
+    });
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -171,6 +205,27 @@ function Graph() {
         </div>
       </div>
 
+      {/* ---------- CATEGORY FILTERS ---------- */}
+      <div className="graph-filters-row">
+        <span className="graph-filters-label">Show:</span>
+        <div className="graph-filters-chips">
+          {CATEGORY_OPTIONS.map((cat) => {
+            const active = selectedCategories.includes(cat.id);
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                className={`graph-filter-chip ${active ? "graph-filter-chip-active" : ""
+                  }`}
+                onClick={() => handleToggleCategory(cat.id)}
+              >
+                {cat.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* ---------- MAIN CONTENT / STATUS ---------- */}
       {isRangeInvalid ? (
         // Invalid range message
@@ -198,11 +253,7 @@ function Graph() {
         // No data state (including empty array from backend)
         <div className="graph-status-center">
           <div className="graph-card graph-card-status">
-            {error && (
-              <p className="graph-status-error">
-                {error}
-              </p>
-            )}
+            {error && <p className="graph-status-error">{error}</p>}
             <p className="graph-status-title">
               No data found for the selected date range.
             </p>
@@ -218,119 +269,153 @@ function Graph() {
 
           <div className="graph-grid">
             {/* Sleep */}
-            <GraphCard title="Sleep (hours)" description="Total sleep per day">
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={data}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#33363f" />
-                  <XAxis dataKey="dateLabel" stroke="#9ea5ad" />
-                  <YAxis stroke="#9ea5ad" />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: "#1f242b", border: "none" }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="sleep"
-                    stroke="#76abae"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </GraphCard>
+            {selectedCategories.includes("sleep") && (
+              <GraphCard
+                title="Sleep (hours)"
+                description="Total sleep per day"
+              >
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={data}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#33363f" />
+                    <XAxis dataKey="dateLabel" stroke="#9ea5ad" />
+                    <YAxis stroke="#9ea5ad" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#1f242b",
+                        border: "none",
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="sleep"
+                      stroke="#76abae"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </GraphCard>
+            )}
 
             {/* Heart rate */}
-            <GraphCard
-              title="Heart Rate (vital)"
-              description="Average heart rate per day"
-            >
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={data}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#33363f" />
-                  <XAxis dataKey="dateLabel" stroke="#9ea5ad" />
-                  <YAxis stroke="#9ea5ad" />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: "#1f242b", border: "none" }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="vital"
-                    stroke="#f2b880"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </GraphCard>
+            {selectedCategories.includes("vital") && (
+              <GraphCard
+                title="Heart Rate (vital)"
+                description="Average heart rate per day"
+              >
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={data}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#33363f" />
+                    <XAxis dataKey="dateLabel" stroke="#9ea5ad" />
+                    <YAxis stroke="#9ea5ad" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#1f242b",
+                        border: "none",
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="vital"
+                      stroke="#f2b880"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </GraphCard>
+            )}
 
             {/* Mood */}
-            <GraphCard title="Mood" description="Daily mood score (1–5)">
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={data}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#33363f" />
-                  <XAxis dataKey="dateLabel" stroke="#9ea5ad" />
-                  <YAxis
-                    domain={[0, 5]}
-                    ticks={[1, 2, 3, 4, 5]}
-                    stroke="#9ea5ad"
-                  />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: "#1f242b", border: "none" }}
-                  />
-                  <Bar dataKey="mood" fill="#76abae" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </GraphCard>
+            {selectedCategories.includes("mood") && (
+              <GraphCard title="Mood" description="Daily mood score (1–5)">
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={data}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#33363f" />
+                    <XAxis dataKey="dateLabel" stroke="#9ea5ad" />
+                    <YAxis
+                      domain={[0, 5]}
+                      ticks={[1, 2, 3, 4, 5]}
+                      stroke="#9ea5ad"
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#1f242b",
+                        border: "none",
+                      }}
+                    />
+                    <Bar
+                      dataKey="mood"
+                      fill="#76abae"
+                      radius={[6, 6, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </GraphCard>
+            )}
 
             {/* Medication */}
-            <GraphCard
-              title="Medication"
-              description="1 = taken, 0 = not taken"
-            >
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={data}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#33363f" />
-                  <XAxis dataKey="dateLabel" stroke="#9ea5ad" />
-                  <YAxis domain={[0, 1]} ticks={[0, 1]} stroke="#9ea5ad" />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: "#1f242b", border: "none" }}
-                    formatter={(value) => (value === 1 ? "Taken" : "Not taken")}
-                  />
-                  <Bar
-                    dataKey="medicNumeric"
-                    fill="#7dd3fc"
-                    radius={[6, 6, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </GraphCard>
+            {selectedCategories.includes("medication") && (
+              <GraphCard
+                title="Medication"
+                description="1 = taken, 0 = not taken"
+              >
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={data}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#33363f" />
+                    <XAxis dataKey="dateLabel" stroke="#9ea5ad" />
+                    <YAxis domain={[0, 1]} ticks={[0, 1]} stroke="#9ea5ad" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#1f242b",
+                        border: "none",
+                      }}
+                      formatter={(value) =>
+                        value === 1 ? "Taken" : "Not taken"
+                      }
+                    />
+                    <Bar
+                      dataKey="medicNumeric"
+                      fill="#7dd3fc"
+                      radius={[6, 6, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </GraphCard>
+            )}
 
             {/* Condition */}
-            <GraphCard
-              title="Condition"
-              description="Overall condition score (1–5)"
-            >
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={data}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#33363f" />
-                  <XAxis dataKey="dateLabel" stroke="#9ea5ad" />
-                  <YAxis
-                    domain={[0, 5]}
-                    ticks={[1, 2, 3, 4, 5]}
-                    stroke="#9ea5ad"
-                  />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: "#1f242b", border: "none" }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="condition"
-                    stroke="#a5b4fc"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </GraphCard>
+            {selectedCategories.includes("condition") && (
+              <GraphCard
+                title="Condition"
+                description="Overall condition score (1–5)"
+              >
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={data}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#33363f" />
+                    <XAxis dataKey="dateLabel" stroke="#9ea5ad" />
+                    <YAxis
+                      domain={[0, 5]}
+                      ticks={[1, 2, 3, 4, 5]}
+                      stroke="#9ea5ad"
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#1f242b",
+                        border: "none",
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="condition"
+                      stroke="#a5b4fc"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </GraphCard>
+            )}
           </div>
         </>
       )}
