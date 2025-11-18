@@ -49,7 +49,7 @@ def create_app():
         if gemini_service is None:
             return jsonify({'error': 'Gemini API not configured'}), 500
         
-        data = request.json  # NOW THIS IS INSIDE A ROUTE - IT WORKS!
+        data = request.json
         message = data.get('message')
         
         if not message:
@@ -63,6 +63,7 @@ def create_app():
             })
         except Exception as e:
             return jsonify({'error': str(e)}), 500
+<<<<<<< HEAD
     
     @app.route('/api/health-logs', methods=['GET'])
     def get_health_logs():
@@ -386,7 +387,68 @@ def create_app():
         except Exception as e:
             return jsonify({'error': str(e)}), 500
     
+=======
+        
+    @app.route("/api/health-logs", methods=["GET"])
+    def get_health_logs():
+        """
+        Returns health logs from the `health_logs` collection.
+        Optional query parameters:
+          - from: start date (MM-DD-YYYY)
+          - to:   end date   (MM-DD-YYYY)
+        If no dates are provided, all logs are returned.
+        """
+        try:
+            start_str = request.args.get("from")
+            end_str = request.args.get("to")
+
+            # Fetch all logs from Mongo
+            logs = list(db.health_logs.find())
+
+            # Helper: parse "MM-DD-YYYY" into a Python date
+            def parse_date_mmddyyyy(s: str):
+                return datetime.strptime(s, "%m-%d-%Y").date()
+
+            # Convert and optionally filter by date range
+            filtered_logs = []
+            start_date = parse_date_mmddyyyy(start_str) if start_str else None
+            end_date = parse_date_mmddyyyy(end_str) if end_str else None
+
+            for log in logs:
+                # Convert ObjectId to string
+                log["_id"] = str(log["_id"])
+
+                # If date is missing or invalid, skip this log
+                date_str = log.get("date")
+                if not date_str:
+                    continue
+
+                try:
+                    log_date = parse_date_mmddyyyy(date_str)
+                except ValueError:
+                    continue
+
+                # Apply filters if provided
+                if start_date and log_date < start_date:
+                    continue
+                if end_date and log_date > end_date:
+                    continue
+
+                filtered_logs.append(log)
+
+            # Sort by date ascending
+            filtered_logs.sort(
+                key=lambda x: datetime.strptime(x["date"], "%m-%d-%Y")
+            )
+
+            return jsonify(filtered_logs), 200
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+>>>>>>> c41ed77 (Connect backend to MongoDB and add health logs API)
     return app
+
 
 if __name__ == '__main__':
     app = create_app()
