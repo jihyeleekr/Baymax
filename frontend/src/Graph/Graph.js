@@ -12,24 +12,21 @@ import {
 } from "recharts";
 import "./Graph.css";
 
+// Base URL for the backend API
 const API_BASE = process.env.REACT_APP_API_BASE_URL || "http://127.0.0.1:5001";
-
-// Convert "YYYY-MM-DD" (from <input type="date">) to "MM-DD-YYYY" (API format)
-const formatDateForApi = (isoStr) => {
-  if (!isoStr) return null;
-  const [yyyy, mm, dd] = isoStr.split("-");
-  return `${mm}-${dd}-${yyyy}`; // e.g. "11-17-2025"
-};
 
 function Graph() {
   const today = new Date();
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(today.getDate() - 30);
 
+  // Date values from <input type="date"> (YYYY-MM-DD)
   const [startDate, setStartDate] = useState(
-    thirtyDaysAgo.toISOString().slice(0, 10) // "YYYY-MM-DD"
+    thirtyDaysAgo.toISOString().slice(0, 10)
   );
   const [endDate, setEndDate] = useState(today.toISOString().slice(0, 10));
+
+  // Chart data and status flags
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -37,6 +34,7 @@ function Graph() {
   const startInputRef = useRef(null);
   const endInputRef = useRef(null);
 
+  // Helper to open the native date picker
   const openPicker = (el) => {
     if (!el) return;
     if (typeof el.showPicker === "function") {
@@ -46,10 +44,12 @@ function Graph() {
     }
   };
 
+  // Front-end validation: "From" must be <= "To"
   const isRangeInvalid = startDate && endDate && startDate > endDate;
 
   useEffect(() => {
     const fetchData = async () => {
+      // If range is invalid, clear the charts and do nothing
       if (isRangeInvalid) {
         setData([]);
         setError("");
@@ -61,41 +61,44 @@ function Graph() {
         setLoading(true);
         setError("");
 
+        // Backend expects ?start=YYYY-MM-DD&end=YYYY-MM-DD
         const params = new URLSearchParams();
-        const from = formatDateForApi(startDate);
-        const to = formatDateForApi(endDate);
-
-        if (from) params.append("from", from);
-        if (to) params.append("to", to);
+        if (startDate) params.append("start", startDate);
+        if (endDate) params.append("end", endDate);
 
         const url = `${API_BASE}/api/health-logs?${params.toString()}`;
-
         const res = await fetch(url);
+
+        // If the request failed, clear data so old graphs disappear
         if (!res.ok) {
-          throw new Error("Failed to load logs");
+          setData([]);
+          throw new Error(`Failed to load logs (status ${res.status})`);
         }
 
         const raw = await res.json();
 
-        // Map backend fields to the shape the charts expect
-        const formatted = raw.map((item) => {
-          // item.date is "MM-DD-YYYY"
+        // Defensive: handle both array and { data: [...] } shapes
+        const items = Array.isArray(raw) ? raw : raw.data || [];
+
+        // Map backend fields to what the charts expect
+        const formatted = items.map((item) => {
+          // item.date is "MM-DD-YYYY" from MongoDB
           const [mm, dd, yyyy] = item.date.split("-");
           const jsDate = new Date(`${yyyy}-${mm}-${dd}`);
 
           return {
             ...item,
-            // label for the X axis, e.g. "11/01"
+            // Label for X axis (e.g., "11/17")
             dateLabel: jsDate.toLocaleDateString("en-US", {
               month: "2-digit",
               day: "2-digit",
             }),
-            // charts expect these keys:
+            // Normalized numeric fields for charts
             sleep: item.hours_of_sleep ?? null,
             vital: item.vital_bpm ?? null,
             mood: item.mood ?? null,
             medicNumeric: item.took_medication ? 1 : 0,
-            // for now use mood as "condition" (can change later)
+            // For now, reuse mood as "condition" (can be changed later)
             condition: item.mood ?? null,
           };
         });
@@ -104,6 +107,7 @@ function Graph() {
       } catch (err) {
         console.error(err);
         setError("An error occurred while loading data.");
+        // Important: always clear previous data on error
         setData([]);
       } finally {
         setLoading(false);
@@ -169,26 +173,46 @@ function Graph() {
 
       {/* ---------- MAIN CONTENT / STATUS ---------- */}
       {isRangeInvalid ? (
+        // Invalid range message
         <div className="graph-status-center">
-          <div className="graph-error">
-            The selected date range is invalid. &quot;From&quot; must be earlier
-            than or equal to &quot;To&quot;.
+          <div className="graph-card graph-card-status graph-card-error">
+            <p className="graph-status-title">
+              The selected date range is invalid.
+            </p>
+            <p className="graph-status-subtitle">
+              &quot;From&quot; must be earlier than or equal to &quot;To&quot;.
+            </p>
           </div>
         </div>
       ) : loading ? (
+        // Loading state
         <div className="graph-status-center">
-          <div className="graph-loading">Loading data…</div>
+          <div className="graph-card graph-card-status">
+            <p className="graph-status-title">Loading data…</p>
+            <p className="graph-status-subtitle">
+              Fetching your health logs for the selected date range.
+            </p>
+          </div>
         </div>
       ) : data.length === 0 ? (
+        // No data state (including empty array from backend)
         <div className="graph-status-center">
-          {error && <div className="graph-error">{error}</div>}
-          <div className="graph-empty">
-            No data found for the selected date range.
-            <br />
-            Try choosing a different range.
+          <div className="graph-card graph-card-status">
+            {error && (
+              <p className="graph-status-error">
+                {error}
+              </p>
+            )}
+            <p className="graph-status-title">
+              No data found for the selected date range.
+            </p>
+            <p className="graph-status-subtitle">
+              Try choosing a different range.
+            </p>
           </div>
         </div>
       ) : (
+        // Charts
         <>
           {error && <div className="graph-error">{error}</div>}
 
