@@ -156,6 +156,16 @@ def create_app():
             with open("data/health_logs_seed.json", "r") as f:
                 health_logs = json.load(f)
 
+            # Validate custom date range
+            if start_date and end_date:
+                start = datetime.strptime(start_date, "%Y-%m-%d")
+                end = datetime.strptime(end_date, "%Y-%m-%d")
+                now = datetime.now()
+                if start > end:
+                    return jsonify({"error": "Start date must not be after end date."}), 400
+                if start > now:
+                    return jsonify({"error": "Start date cannot be in the future."}), 400
+
             # Apply date filtering (seed file dates are MM-DD-YYYY)
             if start_date or end_date:
                 filtered_logs = []
@@ -198,6 +208,10 @@ def create_app():
 
                     filtered_logs.append(filtered_log)
                 health_logs = filtered_logs
+
+            # If no data after filtering, return error
+            if not health_logs:
+                return jsonify({"error": "No data found between the selected date range."}), 404
 
             # ---- CSV export ----
             if export_format == "csv":
@@ -357,6 +371,16 @@ def create_app():
             with open("data/health_logs_seed.json", "r") as f:
                 health_logs = json.load(f)
 
+            # Validate custom date range
+            if start_date and end_date:
+                start = datetime.strptime(start_date, "%Y-%m-%d")
+                end = datetime.strptime(end_date, "%Y-%m-%d")
+                now = datetime.now()
+                if start > now:
+                    return jsonify({"error": "Start date cannot be in the future."}), 400
+                if start > end:
+                    return jsonify({"error": "Start date must not be after end date."}), 400
+
             if start_date or end_date:
                 filtered_logs = []
                 for log in health_logs:
@@ -397,6 +421,10 @@ def create_app():
 
                     filtered_logs.append(filtered_log)
                 health_logs = filtered_logs
+
+            # If no data after filtering, return error
+            if not health_logs:
+                return jsonify({"error": "No data found between the selected date range."}), 404
 
             return jsonify(
                 {
