@@ -12,13 +12,22 @@ import {
 } from "recharts";
 import "./Graph.css";
 
+const API_BASE = process.env.REACT_APP_API_BASE_URL || "http://127.0.0.1:5001";
+
+// Convert "YYYY-MM-DD" (from <input type="date">) to "MM-DD-YYYY" (API format)
+const formatDateForApi = (isoStr) => {
+  if (!isoStr) return null;
+  const [yyyy, mm, dd] = isoStr.split("-");
+  return `${mm}-${dd}-${yyyy}`; // e.g. "11-17-2025"
+};
+
 function Graph() {
   const today = new Date();
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(today.getDate() - 30);
 
   const [startDate, setStartDate] = useState(
-    thirtyDaysAgo.toISOString().slice(0, 10)
+    thirtyDaysAgo.toISOString().slice(0, 10) // "YYYY-MM-DD"
   );
   const [endDate, setEndDate] = useState(today.toISOString().slice(0, 10));
   const [data, setData] = useState([]);
@@ -37,8 +46,7 @@ function Graph() {
     }
   };
 
-  const isRangeInvalid =
-    startDate && endDate && startDate > endDate;
+  const isRangeInvalid = startDate && endDate && startDate > endDate;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -54,25 +62,41 @@ function Graph() {
         setError("");
 
         const params = new URLSearchParams();
-        if (startDate) params.append("start", startDate);
-        if (endDate) params.append("end", endDate);
+        const from = formatDateForApi(startDate);
+        const to = formatDateForApi(endDate);
 
-        const res = await fetch(`/api/logs?${params.toString()}`);
+        if (from) params.append("from", from);
+        if (to) params.append("to", to);
+
+        const url = `${API_BASE}/api/health-logs?${params.toString()}`;
+
+        const res = await fetch(url);
         if (!res.ok) {
           throw new Error("Failed to load logs");
         }
 
         const raw = await res.json();
 
+        // Map backend fields to the shape the charts expect
         const formatted = raw.map((item) => {
-          const d = new Date(item.date);
+          // item.date is "MM-DD-YYYY"
+          const [mm, dd, yyyy] = item.date.split("-");
+          const jsDate = new Date(`${yyyy}-${mm}-${dd}`);
+
           return {
             ...item,
-            dateLabel: d.toLocaleDateString("en-US", {
+            // label for the X axis, e.g. "11/01"
+            dateLabel: jsDate.toLocaleDateString("en-US", {
               month: "2-digit",
               day: "2-digit",
             }),
-            medicNumeric: item.medic ? 1 : 0,
+            // charts expect these keys:
+            sleep: item.hours_of_sleep ?? null,
+            vital: item.vital_bpm ?? null,
+            mood: item.mood ?? null,
+            medicNumeric: item.took_medication ? 1 : 0,
+            // for now use mood as "condition" (can change later)
+            condition: item.mood ?? null,
           };
         });
 
@@ -80,6 +104,7 @@ function Graph() {
       } catch (err) {
         console.error(err);
         setError("An error occurred while loading data.");
+        setData([]);
       } finally {
         setLoading(false);
       }

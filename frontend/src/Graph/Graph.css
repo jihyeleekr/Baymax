@@ -1,12 +1,17 @@
+/* -------- Page wrapper -------- */
+
 .graph-page {
-  background: linear-gradient(135deg, #222831, #1a1f25);
+  background: radial-gradient(circle at top left, #27313c 0, #222831 40%, #1a1f25 100%);
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 40px 60px 16px;
+  padding: 40px 60px 20px;
   color: #eeeeee;
   min-height: 520px;
+  box-sizing: border-box;
 }
+
+/* -------- Header -------- */
 
 .graph-header-row {
   display: flex;
@@ -17,15 +22,17 @@
 }
 
 .graph-title {
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 700;
+  letter-spacing: 0.02em;
   margin: 0 0 6px;
 }
 
 .graph-subtitle {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
   opacity: 0.85;
+  color: #cbd5e1;
 }
 
 /* -------- Date range -------- */
@@ -53,14 +60,15 @@
 
 /* native date input */
 .date-input-wrapper input[type="date"] {
-  width: 110px;
+  width: 130px;
   padding: 7px 40px 7px 12px;
   border-radius: 999px;
   border: 1px solid #2c3139;
-  background-color: #181c22;
-  color: #eeeeee;
+  background: linear-gradient(145deg, #181c22, #1e242c);
+  color: #f9fafb;
   font-size: 13px;
   outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
 /* hide default calendar icon in WebKit */
@@ -71,6 +79,8 @@
 
 .date-input-wrapper input[type="date"]:focus {
   border-color: #76abae;
+  box-shadow: 0 0 0 1px rgba(118, 171, 174, 0.6);
+  background: linear-gradient(145deg, #1a2027, #222832);
 }
 
 /* yellow calendar icon (Material Symbols) */
@@ -82,9 +92,15 @@
   justify-content: center;
   font-family: "Material Symbols Outlined";
   font-size: 20px;
-  color: #eac452;
+  color: #facc6b;
   cursor: pointer;
   user-select: none;
+  transition: transform 0.12s ease, color 0.12s ease;
+}
+
+.date-input-wrapper .calendar-icon:hover {
+  transform: translateY(-1px);
+  color: #ffe29b;
 }
 
 .date-separator {
@@ -102,18 +118,40 @@
   justify-content: center;
   align-items: center;
   text-align: center;
-}
-
-.graph-error,
-.graph-empty,
-.graph-loading {
-  font-size: 14px;
-  color: #9ea5ad;
-  margin: 4px 0;
+  padding: 32px 16px;
 }
 
 .graph-error {
-  margin-bottom: 6px;
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.5);
+  color: #fecaca;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 16px 24px;
+  border-radius: 14px;
+  max-width: 640px;
+  line-height: 1.5;
+  margin: 8px 0;
+}
+
+.graph-empty {
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  color: #e2e8f0;
+  font-size: 15px;
+  font-weight: 500;
+  padding: 16px 24px;
+  border-radius: 14px;
+  max-width: 640px;
+  line-height: 1.6;
+  margin: 8px 0;
+}
+
+.graph-loading {
+  color: #a5b4fc;
+  font-size: 15px;
+  font-weight: 600;
+  margin: 8px 0;
 }
 
 /* -------- Cards / grid -------- */
@@ -126,15 +164,24 @@
 }
 
 .graph-card {
-  background-color: #1f242b;
+  background: radial-gradient(circle at top left, #29313a 0, #1f242b 55%, #181c22 100%);
   border-radius: 18px;
   padding: 16px 18px 12px;
-  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.graph-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.75);
+  border-color: rgba(118, 171, 174, 0.4);
 }
 
 .graph-card-header h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
+  letter-spacing: 0.03em;
 }
 
 .graph-card-header p {
@@ -147,7 +194,7 @@
 
 @media (max-width: 900px) {
   .graph-page {
-    padding: 24px 16px 12px;
+    padding: 24px 16px 16px;
   }
 
   .graph-grid {
@@ -159,7 +206,33 @@
     align-items: flex-start;
   }
 
-  .date-input-wrapper input[type="date"] {
+  .date-range {
     width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .date-input-wrapper input[type="date"] {
+    width: 150px;
+  }
+}
+
+@media (max-width: 600px) {
+  .graph-title {
+    font-size: 24px;
+  }
+
+  .graph-subtitle {
+    font-size: 13px;
+  }
+
+  .graph-error {
+    font-size: 15px;
+    padding: 14px 18px;
+  }
+
+  .graph-empty,
+  .graph-loading {
+    font-size: 14px;
   }
 }
