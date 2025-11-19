@@ -58,9 +58,7 @@ class GraphVisualizationTestCase(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-
         data = json.loads(response.data)
-
         items = data if isinstance(data, list) else data.get("data", [])
 
         self.assertIsInstance(items, list)

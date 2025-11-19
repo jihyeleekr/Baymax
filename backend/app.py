@@ -68,100 +68,108 @@ def create_app():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-    # ----------------- Health logs API (from MongoDB) -----------------
-        # ----------------- Health logs API (from MongoDB) -----------------
+    # ----------------- Health logs API (JSON seed 기반, Mongo 사용 X) -----------------
     @app.route("/api/health-logs", methods=["GET"])
     def get_health_logs():
         """
-        Returns health logs from the `health_logs` collection.
+        Retrieve health logs for graph visualization.
 
-        Optional query parameters (matching the React Graph component):
+        Optional query parameters:
           - start: start date (YYYY-MM-DD)
           - end:   end date   (YYYY-MM-DD)
 
-        Documents in MongoDB use "date" as a string in "MM-DD-YYYY" format.
-        This endpoint converts and filters correctly, then returns either:
-          - 400 if the date range is invalid (start > end)
-          - 404 if no logs are found in the range
-          - 200 with a plain list of logs otherwise
+        Data source:
+        - Reads from data/health_logs_seed.json (dates in MM-DD-YYYY format)
+
+        Behavior:
+        - 400 if date format is invalid
+        - 400 if start > end
+        - 404 if both start & end exist and no logs in that range
+        - 200 with a plain list of logs otherwise
         """
-        try:
-            # Query params from frontend (YYYY-MM-DD)
-            start_str = request.args.get("start")
-            end_str = request.args.get("end")
 
-            # Parse query params if provided
-            start_date = (
-                datetime.strptime(start_str, "%Y-%m-%d").date()
-                if start_str
-                else None
-            )
-            end_date = (
-                datetime.strptime(end_str, "%Y-%m-%d").date()
-                if end_str
-                else None
-            )
+        # 1. Read query parameters
+        start_str = request.args.get("start")
+        end_str = request.args.get("end")
 
-            # If both dates are provided and start > end, return 400
-            if start_date and end_date and start_date > end_date:
+        start_date = None
+        end_date = None
+
+        # 2. Validate and parse YYYY-MM-DD (invalid formats → 400)
+        if start_str:
+            try:
+                start_date = datetime.strptime(start_str, "%Y-%m-%d").date()
+            except ValueError:
                 return (
-                    jsonify({"error": "Start date must not be after end date."}),
+                    jsonify({"error": "Invalid date format for 'start'. Use YYYY-MM-DD."}),
                     400,
                 )
 
-            # Fetch all logs from MongoDB
-            logs = list(db.health_logs.find())
-
-            # Helper: parse "MM-DD-YYYY" into a Python date object
-            def parse_mmddyyyy(s: str):
-                return datetime.strptime(s, "%m-%d-%Y").date()
-
-            filtered_logs = []
-
-            for log in logs:
-                # Convert ObjectId to string for JSON serialization
-                log["_id"] = str(log["_id"])
-
-                date_str = log.get("date")
-                if not date_str:
-                    # Skip documents without a date
-                    continue
-
-                try:
-                    log_date = parse_mmddyyyy(date_str)
-                except ValueError:
-                    # Skip invalid date formats
-                    continue
-
-                # Apply optional date range filters
-                if start_date and log_date < start_date:
-                    continue
-                if end_date and log_date > end_date:
-                    continue
-
-                filtered_logs.append(log)
-
-            # If no logs are found in the range, return 404
-            if not filtered_logs:
+        if end_str:
+            try:
+                end_date = datetime.strptime(end_str, "%Y-%m-%d").date()
+            except ValueError:
                 return (
-                    jsonify(
-                        {
-                            "error": "No health logs found between the selected date range."
-                        }
-                    ),
-                    404,
+                    jsonify({"error": "Invalid date format for 'end'. Use YYYY-MM-DD."}),
+                    400,
                 )
 
-            # Sort by date ascending using the "MM-DD-YYYY" field
-            filtered_logs.sort(
-                key=lambda x: datetime.strptime(x["date"], "%m-%d-%Y")
+        # 3. Validate logical range
+        if start_date and end_date and start_date > end_date:
+            return (
+                jsonify({"error": "Start date must not be after end date."}),
+                400,
             )
 
-            # Frontend expects a plain array here
-            return jsonify(filtered_logs), 200
-
+        # 4. Load logs from seed JSON (NOT MongoDB)
+        try:
+            with open("data/health_logs_seed.json", "r") as f:
+                logs = json.load(f)  # list[dict], each has "date" in MM-DD-YYYY
         except Exception as e:
-            return jsonify({"error": str(e)}), 500
+            return jsonify({"error": f"Failed to load health logs: {e}"}), 500
+
+        # Helper: "MM-DD-YYYY" → date
+        def parse_mmddyyyy(date_str: str):
+            return datetime.strptime(date_str, "%m-%d-%Y").date()
+
+        filtered_logs = []
+
+        # 5. Apply filtering
+        for log in logs:
+            raw_date = log.get("date")
+            if not raw_date:
+                continue  # skip logs without date
+
+            try:
+                log_date = parse_mmddyyyy(raw_date)
+            except ValueError:
+                # skip malformed dates in seed file
+                continue
+
+            # Apply optional range filters
+            if start_date and log_date < start_date:
+                continue
+            if end_date and log_date > end_date:
+                continue
+
+            filtered_logs.append(log)
+
+        # 6. If both start & end provided and no logs in range → 404
+        if start_date and end_date and not filtered_logs:
+            return (
+                jsonify(
+                    {"error": "No health logs found between the selected date range."}
+                ),
+                404,
+            )
+
+        # 7. Sort results chronologically (by MM-DD-YYYY string)
+        filtered_logs.sort(
+            key=lambda x: datetime.strptime(x["date"], "%m-%d-%Y")
+        )
+
+        # 8. Return list (works for: no dates / only start / only end / valid subset)
+        return jsonify(filtered_logs), 200
 
 
     # ----------------- Export data (file-based seed for now) -----------------
