@@ -69,6 +69,7 @@ def create_app():
             return jsonify({"error": str(e)}), 500
 
     # ----------------- Health logs API (from MongoDB) -----------------
+        # ----------------- Health logs API (from MongoDB) -----------------
     @app.route("/api/health-logs", methods=["GET"])
     def get_health_logs():
         """
@@ -79,19 +80,15 @@ def create_app():
           - end:   end date   (YYYY-MM-DD)
 
         Documents in MongoDB use "date" as a string in "MM-DD-YYYY" format.
-        This endpoint converts and filters correctly, then returns a plain list.
+        This endpoint converts and filters correctly, then returns either:
+          - 400 if the date range is invalid (start > end)
+          - 404 if no logs are found in the range
+          - 200 with a plain list of logs otherwise
         """
         try:
             # Query params from frontend (YYYY-MM-DD)
             start_str = request.args.get("start")
             end_str = request.args.get("end")
-
-            # Fetch all logs from MongoDB
-            logs = list(db.health_logs.find())
-
-            # Helper: parse "MM-DD-YYYY" into a Python date object
-            def parse_mmddyyyy(s: str):
-                return datetime.strptime(s, "%m-%d-%Y").date()
 
             # Parse query params if provided
             start_date = (
@@ -104,6 +101,20 @@ def create_app():
                 if end_str
                 else None
             )
+
+            # If both dates are provided and start > end, return 400
+            if start_date and end_date and start_date > end_date:
+                return (
+                    jsonify({"error": "Start date must not be after end date."}),
+                    400,
+                )
+
+            # Fetch all logs from MongoDB
+            logs = list(db.health_logs.find())
+
+            # Helper: parse "MM-DD-YYYY" into a Python date object
+            def parse_mmddyyyy(s: str):
+                return datetime.strptime(s, "%m-%d-%Y").date()
 
             filtered_logs = []
 
@@ -130,6 +141,17 @@ def create_app():
 
                 filtered_logs.append(log)
 
+            # If no logs are found in the range, return 404
+            if not filtered_logs:
+                return (
+                    jsonify(
+                        {
+                            "error": "No health logs found between the selected date range."
+                        }
+                    ),
+                    404,
+                )
+
             # Sort by date ascending using the "MM-DD-YYYY" field
             filtered_logs.sort(
                 key=lambda x: datetime.strptime(x["date"], "%m-%d-%Y")
@@ -140,6 +162,7 @@ def create_app():
 
         except Exception as e:
             return jsonify({"error": str(e)}), 500
+
 
     # ----------------- Export data (file-based seed for now) -----------------
     @app.route("/api/export", methods=["POST"])
