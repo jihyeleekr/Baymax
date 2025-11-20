@@ -2,7 +2,7 @@ import BaymaxChat from "./components/BaymaxChat";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Nav from "./Nav";
 import Team from "./Team/Team";
-import Home from "./Home/Home";
+import Home from "./Home";
 import Footer from "./Footer/Footer";
 import Upload from "./Upload/Upload";
 import Export from "./Export/Export";

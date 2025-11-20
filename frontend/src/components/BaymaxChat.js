@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
+import { supabase } from '../SupabaseClient';
+
 import "./BaymaxChat.css";
 
 
@@ -55,55 +57,59 @@ function BaymaxChat() {
   }, [messages]);
 
   // Handle sending messages
-  const handleSend = async (e) => {
-    e.preventDefault();
-    if (!input.trim()) return;
+ const handleSend = async (e) => {
+  e.preventDefault();
+  if (!input.trim()) return;
 
-    const userInput = input.trim();
+  const userInput = input.trim();
 
-    // Add user message
-    setMessages((prev) => [...prev, {
-      id: Date.now(),
-      sender: "user",
-      text: userInput,
-      time: "Now",
-    }]);
-    setInput("");
+  setMessages((prev) => [...prev, {
+    id: Date.now(),
+    sender: "user",
+    text: userInput,
+    time: "Now",
+  }]);
+  setInput("");
 
-    // Call Gemini API
-    try {
-      const response = await fetch('http://localhost:5001/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userInput })
-      });
+  try {
+    // Get Supabase user
+    const userResult = await supabase.auth.getUser();
+    const user = userResult.data?.user;
+    const userId = user ? user.id : "anonymous";
 
-      const data = await response.json();
+    // API CALL WITH USER ID
+    const response = await fetch('http://localhost:5001/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: userInput, user_id: userId })
+    });
 
-      if (response.ok) {
-        setMessages((prev) => [...prev, {
-          id: Date.now() + 1,
-          sender: "bot",
-          text: data.response,
-          time: "Now"
-        }]);
-      } else {
-        setMessages((prev) => [...prev, {
-          id: Date.now() + 1,
-          sender: "bot",
-          text: "Error: " + (data.error || 'Failed to get response'),
-          time: "Now"
-        }]);
-      }
-    } catch (error) {
+    const data = await response.json();
+
+    if (response.ok) {
       setMessages((prev) => [...prev, {
         id: Date.now() + 1,
         sender: "bot",
-        text: "Connection error: " + error.message,
+        text: data.response,
+        time: "Now"
+      }]);
+    } else {
+      setMessages((prev) => [...prev, {
+        id: Date.now() + 1,
+        sender: "bot",
+        text: "Error: " + (data.error || 'Failed to get response'),
         time: "Now"
       }]);
     }
-  };
+  } catch (error) {
+    setMessages((prev) => [...prev, {
+      id: Date.now() + 1,
+      sender: "bot",
+      text: "Connection error: " + error.message,
+      time: "Now"
+    }]);
+  }
+};
 
   return (
     <div className="chat-page">

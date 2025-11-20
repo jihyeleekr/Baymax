@@ -199,58 +199,33 @@ Provide a helpful, educational response (2-3 sentences max):"""
             print(f"❌ Chat error: {str(e)}")
             return jsonify({"error": str(e)}), 500
 
+
+
+
+
+
+   
+
     # ----------------- Health logs API (from MongoDB) -----------------
+   
+
     @app.route("/api/health-logs", methods=["GET"])
     def get_health_logs():
-        """Returns health logs from the `health_logs` collection."""
-        try:
-            start_str = request.args.get("start")
-            end_str = request.args.get("end")
+        """
+        Returns health logs from the collection for a specific user.
+        Pass `user_id` as a query parameter: /api/health-logs?user_id=YOUR_SUPABASE_USER_ID
+        """
+        user_id = request.args.get("user_id")
+        if not user_id:
+            return jsonify({"error": "Missing user_id"}), 400
 
-            logs = list(db.health_logs.find())
+        user_hash = PHIAnonymizer.hash_identifier(user_id)
+        logs = list(db.health_logs.find({"user_id_hash": user_hash}))
+        for log in logs:
+            log["_id"] = str(log["_id"])  # Convert ObjectId for JSON serialize
 
-            def parse_mmddyyyy(s: str):
-                return datetime.strptime(s, "%m-%d-%Y").date()
+        return jsonify(logs), 200
 
-            start_date = (
-                datetime.strptime(start_str, "%Y-%m-%d").date()
-                if start_str
-                else None
-            )
-            end_date = (
-                datetime.strptime(end_str, "%Y-%m-%d").date()
-                if end_str
-                else None
-            )
-
-            filtered_logs = []
-
-            for log in logs:
-                log["_id"] = str(log["_id"])
-                date_str = log.get("date")
-                if not date_str:
-                    continue
-
-                try:
-                    log_date = parse_mmddyyyy(date_str)
-                except ValueError:
-                    continue
-
-                if start_date and log_date < start_date:
-                    continue
-                if end_date and log_date > end_date:
-                    continue
-
-                filtered_logs.append(log)
-
-            filtered_logs.sort(
-                key=lambda x: datetime.strptime(x["date"], "%m-%d-%Y")
-            )
-
-            return jsonify(filtered_logs), 200
-
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
 
     # ----------------- Export data (CSV, PDF, JSON) -----------------
     @app.route("/api/export", methods=["POST"])
