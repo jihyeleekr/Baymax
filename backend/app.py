@@ -8,6 +8,8 @@ from services.gemini_service import GeminiService
 import json
 import csv
 import io
+import re
+import hashlib
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -24,6 +26,72 @@ try:
 except ValueError as e:
     print(f"⚠️ Warning: {e}")
 
+# 🔐 PHI PATTERNS (Protected Health Information)
+PHI_PATTERNS = {
+    'name': r'\b(?:my name is|i am|i\'m|called)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b',
+    'ssn': r'\b\d{3}-\d{2}-\d{4}\b',
+    'phone': r'\b(?:\+?1[-.]?)?\(?\d{3}\)?[-.]?\d{3}[-.]?\d{4}\b',
+    'email': r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
+    'dob': r'\b(?:\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4})\b',
+    'address': r'\b\d+\s+[A-Za-z0-9\s]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln)\b'
+}
+
+class PHIAnonymizer:
+    """Anonymize Protected Health Information"""
+    
+    @staticmethod
+    def anonymize(text):
+        """Replace PHI with tokens"""
+        anonymized = text
+        replacements = {}
+        
+        for category, pattern in PHI_PATTERNS.items():
+            matches = list(re.finditer(pattern, text, re.IGNORECASE))
+            for i, match in enumerate(matches):
+                original = match.group(0)
+                token = f"[{category.upper()}_{i}]"
+                anonymized = anonymized.replace(original, token, 1)
+                replacements[token] = category
+        
+        return anonymized, replacements
+    
+    @staticmethod
+    def hash_identifier(text):
+        """SHA256 hash for user ID"""
+        return hashlib.sha256(text.encode()).hexdigest()[:16]
+
+class ResponseFilter:
+    """Filter and classify health queries"""
+    
+    CLASSIFICATIONS = {
+        'SYMPTOM': ['pain', 'fever', 'headache', 'nausea', 'cough', 'dizzy', 'tired', 'sore'],
+        'MEDICATION': ['medicine', 'drug', 'prescription', 'pill', 'dosage', 'medication'],
+        'TEST_RESULT': ['test', 'result', 'lab', 'blood work', 'scan', 'xray'],
+        'VITAL_SIGNS': ['blood pressure', 'heart rate', 'temperature', 'pulse', 'oxygen'],
+        'APPOINTMENT': ['appointment', 'schedule', 'doctor visit', 'consultation'],
+        'EMERGENCY': ['emergency', 'urgent', 'severe pain', 'chest pain', 'cant breathe', 'difficulty breathing'],
+        'GENERAL': []
+    }
+    
+    @staticmethod
+    def classify(text):
+        """Classify query type"""
+        text_lower = text.lower()
+        
+        for category, keywords in ResponseFilter.CLASSIFICATIONS.items():
+            if category == 'GENERAL':
+                continue
+            if any(keyword in text_lower for keyword in keywords):
+                return category
+        
+        return 'GENERAL'
+    
+    @staticmethod
+    def is_emergency(text):
+        """Detect emergency situations"""
+        emergency_terms = ['emergency', 'cant breathe', "can't breathe", 'chest pain', 
+                          'severe bleeding', 'unconscious', 'overdose', 'suicide']
+        return any(term in text.lower() for term in emergency_terms)
 
 def create_app():
     app = Flask(__name__)
@@ -39,61 +107,111 @@ def create_app():
     except Exception as e:
         print(f"❌ MongoDB connection failed: {e}")
 
+    # Create TTL index for auto-delete after 90 days (HIPAA compliance)
+    try:
+        db.chat_conversations.create_index("timestamp", expireAfterSeconds=7776000)
+        print("✅ TTL index created for chat conversations")
+    except Exception as e:
+        print(f"⚠️ TTL index warning: {e}")
+
     # ----------------- Health check -----------------
     @app.route("/health", methods=["GET"])
     def health():
         return jsonify({"status": "healthy", "database": "connected"})
 
-    # ----------------- Chat (Gemini) -----------------
+    # ----------------- Chat (Gemini) with ANONYMIZATION -----------------
     @app.route("/api/chat", methods=["POST"])
     def chat():
-        """Chat endpoint for Gemini integration"""
+        """Chat endpoint with PHI anonymization and filtering"""
         if gemini_service is None:
             return jsonify({"error": "Gemini API not configured"}), 500
 
-        data = request.json
-        message = data.get("message")
-
-        if not message:
-            return jsonify({"error": "No message provided"}), 400
-
         try:
-            response = gemini_service.chat(message)
-            return jsonify(
-                {
-                    "response": response,
-                    "timestamp": datetime.now().isoformat(),
+            data = request.json
+            user_message = data.get("message", "")
+            user_id = data.get("user_id", "anonymous")
+
+            if not user_message:
+                return jsonify({"error": "No message provided"}), 400
+
+            # 1️⃣ ANONYMIZE USER INPUT
+            anon_message, phi_map = PHIAnonymizer.anonymize(user_message)
+            user_hash = PHIAnonymizer.hash_identifier(user_id)
+
+            # 2️⃣ CHECK FOR EMERGENCY
+            if ResponseFilter.is_emergency(user_message):
+                emergency_response = {
+                    'response': '🚨 EMERGENCY DETECTED\n\nPlease call 911 immediately or go to the nearest emergency room. This is not a substitute for emergency medical care.',
+                    'classification': 'EMERGENCY',
+                    'anonymized': True,
+                    'phi_detected': len(phi_map) > 0,
+                    'timestamp': datetime.now().isoformat()
                 }
-            )
+                
+                # Log emergency
+                log_conversation(db, user_hash, anon_message, emergency_response['response'], 
+                               'EMERGENCY', phi_map, True)
+                
+                return jsonify(emergency_response), 200
+
+            # 3️⃣ CLASSIFY QUERY
+            classification = ResponseFilter.classify(anon_message)
+
+            # 4️⃣ GENERATE RESPONSE WITH SAFETY CONTEXT
+            context_prompt = f"""You are Baymax, a health information assistant. Follow these rules:
+
+1. NEVER provide medical diagnosis or treatment advice
+2. NEVER ask for personal identifying information
+3. Always recommend consulting healthcare providers for medical decisions
+4. Provide general, educational health information only
+5. Be empathetic and supportive
+
+Query Type: {classification}
+User Query: "{anon_message}"
+
+Provide a helpful, educational response (2-3 sentences max):"""
+
+            bot_response = gemini_service.chat(context_prompt)
+
+            # 5️⃣ ADD SAFETY DISCLAIMER
+            disclaimers = {
+                'SYMPTOM': '⚠️ For symptom evaluation, please consult a healthcare provider.\n\n',
+                'TEST_RESULT': '⚠️ For test result interpretation, please speak with your doctor.\n\n',
+                'MEDICATION': '⚠️ For medication questions, consult your pharmacist or doctor.\n\n',
+                'VITAL_SIGNS': '⚠️ For vital sign concerns, contact your healthcare provider.\n\n'
+            }
+            
+            disclaimer = disclaimers.get(classification, '')
+            final_response = disclaimer + bot_response
+
+            # 6️⃣ LOG TO DATABASE (ANONYMIZED)
+            log_conversation(db, user_hash, anon_message, final_response, classification, phi_map, False)
+
+            return jsonify({
+                'response': final_response,
+                'classification': classification,
+                'anonymized': True,
+                'phi_detected': len(phi_map) > 0,
+                'timestamp': datetime.now().isoformat()
+            }), 200
+
         except Exception as e:
+            print(f"❌ Chat error: {str(e)}")
             return jsonify({"error": str(e)}), 500
 
     # ----------------- Health logs API (from MongoDB) -----------------
     @app.route("/api/health-logs", methods=["GET"])
     def get_health_logs():
-        """
-        Returns health logs from the `health_logs` collection.
-
-        Optional query parameters (matching the React Graph component):
-          - start: start date (YYYY-MM-DD)
-          - end:   end date   (YYYY-MM-DD)
-
-        Documents in MongoDB use "date" as a string in "MM-DD-YYYY" format.
-        This endpoint converts and filters correctly, then returns a plain list.
-        """
+        """Returns health logs from the `health_logs` collection."""
         try:
-            # Query params from frontend (YYYY-MM-DD)
             start_str = request.args.get("start")
             end_str = request.args.get("end")
 
-            # Fetch all logs from MongoDB
             logs = list(db.health_logs.find())
 
-            # Helper: parse "MM-DD-YYYY" into a Python date object
             def parse_mmddyyyy(s: str):
                 return datetime.strptime(s, "%m-%d-%Y").date()
 
-            # Parse query params if provided
             start_date = (
                 datetime.strptime(start_str, "%Y-%m-%d").date()
                 if start_str
@@ -108,21 +226,16 @@ def create_app():
             filtered_logs = []
 
             for log in logs:
-                # Convert ObjectId to string for JSON serialization
                 log["_id"] = str(log["_id"])
-
                 date_str = log.get("date")
                 if not date_str:
-                    # Skip documents without a date
                     continue
 
                 try:
                     log_date = parse_mmddyyyy(date_str)
                 except ValueError:
-                    # Skip invalid date formats
                     continue
 
-                # Apply optional date range filters
                 if start_date and log_date < start_date:
                     continue
                 if end_date and log_date > end_date:
@@ -130,18 +243,16 @@ def create_app():
 
                 filtered_logs.append(log)
 
-            # Sort by date ascending using the "MM-DD-YYYY" field
             filtered_logs.sort(
                 key=lambda x: datetime.strptime(x["date"], "%m-%d-%Y")
             )
 
-            # Frontend expects a plain array here
             return jsonify(filtered_logs), 200
 
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-    # ----------------- Export data (file-based seed for now) -----------------
+    # ----------------- Export data (CSV, PDF, JSON) -----------------
     @app.route("/api/export", methods=["POST"])
     def export_data():
         """Export health data in specified format (CSV, PDF, JSON)"""
@@ -150,13 +261,11 @@ def create_app():
             categories = data.get("categories", [])
             start_date = data.get("start_date")
             end_date = data.get("end_date")
-            export_format = data.get("format", "csv")  # csv, pdf, or json
+            export_format = data.get("format", "csv")
 
-            # For export, we still use the seed file for now
             with open("data/health_logs_seed.json", "r") as f:
                 health_logs = json.load(f)
 
-            # Apply date filtering (seed file dates are MM-DD-YYYY)
             if start_date or end_date:
                 filtered_logs = []
                 for log in health_logs:
@@ -175,7 +284,6 @@ def create_app():
                     filtered_logs.append(log)
                 health_logs = filtered_logs
 
-            # Apply category filtering
             if categories:
                 filtered_logs = []
                 for log in health_logs:
@@ -199,7 +307,7 @@ def create_app():
                     filtered_logs.append(filtered_log)
                 health_logs = filtered_logs
 
-            # ---- CSV export ----
+            # CSV export
             if export_format == "csv":
                 output = io.StringIO()
 
@@ -210,7 +318,6 @@ def create_app():
                     writer.writerows(health_logs)
 
                 output.seek(0)
-
                 file_output = io.BytesIO()
                 file_output.write(output.getvalue().encode("utf-8"))
                 file_output.seek(0)
@@ -222,7 +329,7 @@ def create_app():
                     mimetype="text/csv",
                 )
 
-            # ---- PDF export ----
+            # PDF export
             elif export_format == "pdf":
                 file_output = io.BytesIO()
                 doc = SimpleDocTemplate(file_output, pagesize=letter)
@@ -234,7 +341,7 @@ def create_app():
                     parent=styles["Heading1"],
                     fontSize=18,
                     spaceAfter=30,
-                    alignment=1,  # Center
+                    alignment=1,
                 )
                 story.append(Paragraph("Baymax Health Data Export", title_style))
 
@@ -309,7 +416,7 @@ def create_app():
                     mimetype="application/pdf",
                 )
 
-            # ---- JSON export ----
+            # JSON export
             elif export_format == "json":
                 output = json.dumps(
                     {
@@ -416,6 +523,25 @@ def create_app():
 
     return app
 
+def log_conversation(db, user_hash, user_msg, bot_response, classification, phi_map, is_emergency):
+    """Log anonymized conversation to MongoDB"""
+    try:
+        doc = {
+            'user_id_hash': user_hash,
+            'user_message': user_msg,  # Already anonymized
+            'bot_response': bot_response,
+            'classification': classification,
+            'phi_detected': len(phi_map) > 0,
+            'phi_categories': list(phi_map.values()),
+            'is_emergency': is_emergency,
+            'timestamp': datetime.now()
+        }
+        
+        db.chat_conversations.insert_one(doc)
+        print(f"✅ Logged conversation for user {user_hash[:8]}...")
+        
+    except Exception as e:
+        print(f"❌ Failed to log: {str(e)}")
 
 if __name__ == "__main__":
     app = create_app()
