@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from '../SupabaseClient';
-
 import "./BaymaxChat.css";
 
+// Utility: get personalized LS key
+function getChatStorageKey(user) {
+  return user?.email ? `baymax_chat_history_${user.email}` : "baymax_chat_history_guest";
+}
 
- function getFormattedTime() {
+function getFormattedTime() {
   const now = new Date();
   const hours = String(now.getHours()).padStart(2, '0');
   const minutes = String(now.getMinutes()).padStart(2, '0');
@@ -14,17 +17,14 @@ import "./BaymaxChat.css";
 }
 
 function BaymaxChat() {
-  // Initialize messages from localStorage or use defaults
+  // Store current user (for personalization)
+  const [user, setUser] = useState(null);
+
+  // Load initial messages according to user
   const [messages, setMessages] = useState(() => {
-    const saved = localStorage.getItem('baymax_chat_history');
-    if (saved) {
-      return JSON.parse(saved);
-    }
-
-   
-
-
-
+    // Temporarily load top-level guest data before true user known
+    const saved = localStorage.getItem("baymax_chat_history_guest");
+    if (saved) return JSON.parse(saved);
     return [
       {
         id: 1,
@@ -44,6 +44,43 @@ function BaymaxChat() {
   const [input, setInput] = useState("");
   const chatWindowRef = useRef(null);
 
+  // Get user on mount and listen for log in/out
+  useEffect(() => {
+    // Initial check
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data?.user || null);
+    });
+    // Listen for auth state changes
+    const { data: { subscription } = {} } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => { subscription && subscription.unsubscribe(); };
+  }, []);
+
+  // When user changes, load their personal chat history
+  useEffect(() => {
+    const key = getChatStorageKey(user);
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      setMessages(JSON.parse(saved));
+    } else {
+      setMessages([
+        {
+          id: 1,
+          sender: "bot",
+          text: "Hi, I'm Baymax. How can I help with your health today?",
+          time: getFormattedTime(),
+        },
+        {
+          id: 2,
+          sender: "user",
+          text: "Show me a summary of my recent logs.",
+          time: getFormattedTime(),
+        },
+      ]);
+    }
+  }, [user]);
+
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     if (chatWindowRef.current) {
@@ -51,65 +88,81 @@ function BaymaxChat() {
     }
   }, [messages]);
 
-  // Save messages to localStorage
+  // Save messages to personal localStorage key
   useEffect(() => {
-    localStorage.setItem('baymax_chat_history', JSON.stringify(messages));
-  }, [messages]);
+    const key = getChatStorageKey(user);
+    localStorage.setItem(key, JSON.stringify(messages));
+  }, [messages, user]);
 
   // Handle sending messages
- const handleSend = async (e) => {
-  e.preventDefault();
-  if (!input.trim()) return;
+  const handleSend = async (e) => {
+    e.preventDefault();
+    if (!input.trim()) return;
 
-  const userInput = input.trim();
+    const userInput = input.trim();
 
-  setMessages((prev) => [...prev, {
-    id: Date.now(),
-    sender: "user",
-    text: userInput,
-    time: "Now",
-  }]);
-  setInput("");
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        sender: "user",
+        text: userInput,
+        time: "Now",
+      },
+    ]);
+    setInput("");
 
-  try {
-    // Get Supabase user
-    const userResult = await supabase.auth.getUser();
-    const user = userResult.data?.user;
-    const userId = user ? user.id : "anonymous";
+    try {
+      // If user is logged in, get full user object (for id or email)
+      const userResult = await supabase.auth.getUser();
+      const currentUser = userResult.data?.user;
+      const userId = currentUser ? currentUser.id : "anonymous";
 
-    // API CALL WITH USER ID
-    const response = await fetch('http://localhost:5001/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: userInput, user_id: userId })
-    });
+      // API CALL WITH USER ID
+      const response = await fetch('http://localhost:5001/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userInput, user_id: userId })
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (response.ok) {
-      setMessages((prev) => [...prev, {
-        id: Date.now() + 1,
-        sender: "bot",
-        text: data.response,
-        time: "Now"
-      }]);
-    } else {
-      setMessages((prev) => [...prev, {
-        id: Date.now() + 1,
-        sender: "bot",
-        text: "Error: " + (data.error || 'Failed to get response'),
-        time: "Now"
-      }]);
+      if (response.ok) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now() + 1,
+            sender: "bot",
+            text: data.response,
+            time: "Now"
+          }
+        ]);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now() + 1,
+            sender: "bot",
+            text: "Error: " + (data.error || 'Failed to get response'),
+            time: "Now"
+          }
+        ]);
+      }
+    } catch (error) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          sender: "bot",
+          text: "Connection error: " + error.message,
+          time: "Now"
+        }
+      ]);
     }
-  } catch (error) {
-    setMessages((prev) => [...prev, {
-      id: Date.now() + 1,
-      sender: "bot",
-      text: "Connection error: " + error.message,
-      time: "Now"
-    }]);
-  }
-};
+  };
+
+  // ...return (...) stays the same
+
 
   return (
     <div className="chat-page">
