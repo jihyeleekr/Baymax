@@ -199,33 +199,78 @@ Provide a helpful, educational response (2-3 sentences max):"""
             print(f"❌ Chat error: {str(e)}")
             return jsonify({"error": str(e)}), 500
 
-
-
-
-
-
-   
-
     # ----------------- Health logs API (from MongoDB) -----------------
-   
-
     @app.route("/api/health-logs", methods=["GET"])
     def get_health_logs():
         """
-        Returns health logs from the collection for a specific user.
-        Pass `user_id` as a query parameter: /api/health-logs?user_id=YOUR_SUPABASE_USER_ID
+        Returns health logs from the `health_logs` collection.
+
+        Optional query parameters (matching the React Graph component):
+          - start: start date (YYYY-MM-DD)
+          - end:   end date   (YYYY-MM-DD)
+
+        Documents in MongoDB use "date" as a string in "MM-DD-YYYY" format.
+        This endpoint converts and filters correctly, then returns a plain list.
         """
-        user_id = request.args.get("user_id")
-        if not user_id:
-            return jsonify({"error": "Missing user_id"}), 400
+        try:
+            # Query params from frontend (YYYY-MM-DD)
+            start_str = request.args.get("start")
+            end_str = request.args.get("end")
 
-        user_hash = PHIAnonymizer.hash_identifier(user_id)
-        logs = list(db.health_logs.find({"user_id_hash": user_hash}))
-        for log in logs:
-            log["_id"] = str(log["_id"])  # Convert ObjectId for JSON serialize
+            # Fetch all logs from MongoDB
+            logs = list(db.health_logs.find())
 
-        return jsonify(logs), 200
+            # Helper: parse "MM-DD-YYYY" into a Python date object
+            def parse_mmddyyyy(s: str):
+                return datetime.strptime(s, "%m-%d-%Y").date()
 
+            # Parse query params if provided
+            start_date = (
+                datetime.strptime(start_str, "%Y-%m-%d").date()
+                if start_str
+                else None
+            )
+            end_date = (
+                datetime.strptime(end_str, "%Y-%m-%d").date()
+                if end_str
+                else None
+            )
+
+            filtered_logs = []
+
+            for log in logs:
+                # Convert ObjectId to string for JSON serialization
+                log["_id"] = str(log["_id"])
+
+                date_str = log.get("date")
+                if not date_str:
+                    # Skip documents without a date
+                    continue
+
+                try:
+                    log_date = parse_mmddyyyy(date_str)
+                except ValueError:
+                    # Skip invalid date formats
+                    continue
+
+                # Apply optional date range filters
+                if start_date and log_date < start_date:
+                    continue
+                if end_date and log_date > end_date:
+                    continue
+
+                filtered_logs.append(log)
+
+            # Sort by date ascending using the "MM-DD-YYYY" field
+            filtered_logs.sort(
+                key=lambda x: datetime.strptime(x["date"], "%m-%d-%Y")
+            )
+
+            # Frontend expects a plain array here
+            return jsonify(filtered_logs), 200
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
 
     # ----------------- Export data (CSV, PDF, JSON) -----------------
     @app.route("/api/export", methods=["POST"])
@@ -241,6 +286,7 @@ Provide a helpful, educational response (2-3 sentences max):"""
             with open("data/health_logs_seed.json", "r") as f:
                 health_logs = json.load(f)
 
+            # Apply date filtering (seed file dates are MM-DD-YYYY)
             if start_date or end_date:
                 filtered_logs = []
                 for log in health_logs:
@@ -282,7 +328,7 @@ Provide a helpful, educational response (2-3 sentences max):"""
                     filtered_logs.append(filtered_log)
                 health_logs = filtered_logs
 
-            # CSV export
+            # ---- CSV export ----
             if export_format == "csv":
                 output = io.StringIO()
 
@@ -439,6 +485,16 @@ Provide a helpful, educational response (2-3 sentences max):"""
             with open("data/health_logs_seed.json", "r") as f:
                 health_logs = json.load(f)
 
+            # Validate custom date range
+            if start_date and end_date:
+                start = datetime.strptime(start_date, "%Y-%m-%d")
+                end = datetime.strptime(end_date, "%Y-%m-%d")
+                now = datetime.now()
+                if start > now:
+                    return jsonify({"error": "Start date cannot be in the future."}), 400
+                if start > end:
+                    return jsonify({"error": "Start date must not be after end date."}), 400
+
             if start_date or end_date:
                 filtered_logs = []
                 for log in health_logs:
@@ -479,6 +535,10 @@ Provide a helpful, educational response (2-3 sentences max):"""
 
                     filtered_logs.append(filtered_log)
                 health_logs = filtered_logs
+
+            # If no data after filtering, return error
+            if not health_logs:
+                return jsonify({"error": "No data found between the selected date range."}), 404
 
             return jsonify(
                 {

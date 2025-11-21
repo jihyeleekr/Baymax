@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import {
   LineChart,
   Line,
@@ -15,6 +15,139 @@ import "./Graph.css";
 // Base URL for the backend API
 const API_BASE = process.env.REACT_APP_API_BASE_URL || "http://127.0.0.1:5001";
 
+// Category options for the filter UI
+const CATEGORY_OPTIONS = [
+  { id: "sleep", label: "Sleep" },
+  { id: "vital", label: "Heart rate" },
+  { id: "mood", label: "Mood" },
+  { id: "medication", label: "Medication" },
+  { id: "condition", label: "Condition" },
+];
+
+// X-axis resolution options
+const RESOLUTION_OPTIONS = [
+  { id: "daily", label: "Daily" },
+  { id: "weekly", label: "Weekly" },
+  { id: "monthly", label: "Monthly" },
+  { id: "yearly", label: "Yearly" },
+];
+
+// Aggregate raw daily data into weekly / monthly / yearly buckets
+function aggregateData(items, resolution) {
+  if (!items || items.length === 0) return [];
+
+  // Sort by date ascending
+  const sorted = [...items].sort(
+    (a, b) => a.fullDate.getTime() - b.fullDate.getTime()
+  );
+
+  // Daily mode: just format dateLabel and return
+  if (resolution === "daily") {
+    return sorted.map((item) => ({
+      ...item,
+      dateLabel: item.fullDate.toLocaleDateString("en-US", {
+        month: "2-digit",
+        day: "2-digit",
+      }),
+    }));
+  }
+
+  const metricKeys = ["sleep", "vital", "mood", "medicNumeric", "condition"];
+  const groups = new Map();
+
+  sorted.forEach((item) => {
+    const d = item.fullDate;
+    if (!(d instanceof Date) || isNaN(d)) return;
+
+    let bucketKey = "";
+    let bucketDate = null;
+
+    if (resolution === "weekly") {
+      // Use Sunday as the start of the week
+      const weekStart = new Date(d);
+      weekStart.setHours(0, 0, 0, 0);
+      const day = weekStart.getDay(); // 0 = Sunday
+      weekStart.setDate(weekStart.getDate() - day);
+      bucketKey = `week-${weekStart.toISOString().slice(0, 10)}`;
+      bucketDate = weekStart;
+    } else if (resolution === "monthly") {
+      bucketKey = `month-${d.getFullYear()}-${d.getMonth()}`;
+      bucketDate = new Date(d.getFullYear(), d.getMonth(), 1);
+    } else if (resolution === "yearly") {
+      bucketKey = `year-${d.getFullYear()}`;
+      bucketDate = new Date(d.getFullYear(), 0, 1);
+    }
+
+    if (!groups.has(bucketKey)) {
+      const sums = {};
+      const counts = {};
+      metricKeys.forEach((k) => {
+        sums[k] = 0;
+        counts[k] = 0;
+      });
+
+      groups.set(bucketKey, {
+        dateForLabel: bucketDate,
+        sums,
+        counts,
+      });
+    }
+
+    const bucket = groups.get(bucketKey);
+    metricKeys.forEach((key) => {
+      const v = item[key];
+      if (typeof v === "number" && !Number.isNaN(v)) {
+        bucket.sums[key] += v;
+        bucket.counts[key] += 1;
+      }
+    });
+  });
+
+  // Build aggregated list
+  const result = Array.from(groups.values())
+    .sort((a, b) => a.dateForLabel - b.dateForLabel)
+    .map((group) => {
+      const { sums, counts, dateForLabel } = group;
+      const point = {};
+
+      // Average each numeric metric
+      metricKeys.forEach((key) => {
+        const c = counts[key];
+        point[key] = c > 0 ? sums[key] / c : null;
+      });
+
+      // Build label for X axis
+      let dateLabel = "";
+      const d = dateForLabel;
+
+      if (resolution === "weekly") {
+        const end = new Date(d);
+        end.setDate(d.getDate() + 6);
+        dateLabel = `${d.toLocaleDateString("en-US", {
+          month: "2-digit",
+          day: "2-digit",
+        })}–${end.toLocaleDateString("en-US", {
+          month: "2-digit",
+          day: "2-digit",
+        })}`;
+      } else if (resolution === "monthly") {
+        dateLabel = d.toLocaleDateString("en-US", {
+          month: "short",
+          year: "numeric",
+        });
+      } else if (resolution === "yearly") {
+        dateLabel = String(d.getFullYear());
+      }
+
+      return {
+        ...point,
+        dateLabel,
+      };
+    });
+
+  return result;
+}
+
 function Graph() {
   const today = new Date();
   const thirtyDaysAgo = new Date();
@@ -26,10 +159,18 @@ function Graph() {
   );
   const [endDate, setEndDate] = useState(today.toISOString().slice(0, 10));
 
-  // Chart data and status flags
-  const [data, setData] = useState([]);
+  // Raw daily data from backend (includes fullDate for aggregation)
+  const [rawData, setRawData] = useState([]);
+
+  // Status flags
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Which categories are currently visible (default: only Sleep)
+  const [selectedCategories, setSelectedCategories] = useState(["sleep"]);
+
+  // X-axis resolution (default: Daily)
+  const [resolution, setResolution] = useState("daily");
 
   const startInputRef = useRef(null);
   const endInputRef = useRef(null);
@@ -47,11 +188,35 @@ function Graph() {
   // Front-end validation: "From" must be <= "To"
   const isRangeInvalid = startDate && endDate && startDate > endDate;
 
+  // Toggle a category on/off (but keep at least one selected)
+  const handleToggleCategory = (id) => {
+    setSelectedCategories((prev) => {
+      const isActive = prev.includes(id);
+
+      // Prevent turning off the last active category
+      if (isActive && prev.length === 1) {
+        return prev;
+      }
+
+      if (isActive) {
+        return prev.filter((c) => c !== id);
+      }
+
+      return [...prev, id];
+    });
+  };
+
+  // Aggregated data based on the selected resolution
+  const aggregatedData = useMemo(
+    () => aggregateData(rawData, resolution),
+    [rawData, resolution]
+  );
+
+  // Fetch raw daily data from backend whenever the date range changes
   useEffect(() => {
     const fetchData = async () => {
-      // If range is invalid, clear the charts and do nothing
       if (isRangeInvalid) {
-        setData([]);
+        setRawData([]);
         setError("");
         setLoading(false);
         return;
@@ -69,46 +234,54 @@ function Graph() {
         const url = `${API_BASE}/api/health-logs?${params.toString()}`;
         const res = await fetch(url);
 
-        // If the request failed, clear data so old graphs disappear
         if (!res.ok) {
-          setData([]);
+          setRawData([]);
           throw new Error(`Failed to load logs (status ${res.status})`);
         }
 
         const raw = await res.json();
 
-        // Defensive: handle both array and { data: [...] } shapes
+        // Handle both array and { data: [...] } shapes
         const items = Array.isArray(raw) ? raw : raw.data || [];
 
-        // Map backend fields to what the charts expect
+        // Normalize fields and keep a real Date object for each record
         const formatted = items.map((item) => {
           // item.date is "MM-DD-YYYY" from MongoDB
           const [mm, dd, yyyy] = item.date.split("-");
-          const jsDate = new Date(`${yyyy}-${mm}-${dd}`);
+          const fullDate = new Date(`${yyyy}-${mm}-${dd}`);
+          fullDate.setHours(0, 0, 0, 0);
 
           return {
-            ...item,
-            // Label for X axis (e.g., "11/17")
-            dateLabel: jsDate.toLocaleDateString("en-US", {
+            fullDate,
+            // dateLabel is only used directly in "daily" mode
+            dateLabel: fullDate.toLocaleDateString("en-US", {
               month: "2-digit",
               day: "2-digit",
             }),
             // Normalized numeric fields for charts
-            sleep: item.hours_of_sleep ?? null,
-            vital: item.vital_bpm ?? null,
-            mood: item.mood ?? null,
-            medicNumeric: item.took_medication ? 1 : 0,
+            sleep:
+              typeof item.hours_of_sleep === "number"
+                ? item.hours_of_sleep
+                : null,
+            vital:
+              typeof item.vital_bpm === "number" ? item.vital_bpm : null,
+            mood: typeof item.mood === "number" ? item.mood : null,
+            medicNumeric:
+              item.took_medication === true
+                ? 1
+                : item.took_medication === false
+                  ? 0
+                  : null,
             // For now, reuse mood as "condition" (can be changed later)
-            condition: item.mood ?? null,
+            condition: typeof item.mood === "number" ? item.mood : null,
           };
         });
 
-        setData(formatted);
+        setRawData(formatted);
       } catch (err) {
         console.error(err);
         setError("An error occurred while loading data.");
-        // Important: always clear previous data on error
-        setData([]);
+        setRawData([]);
       } finally {
         setLoading(false);
       }
@@ -116,6 +289,8 @@ function Graph() {
 
     fetchData();
   }, [startDate, endDate, isRangeInvalid]);
+
+  const hasData = aggregatedData.length > 0;
 
   return (
     <div className="graph-page">
@@ -171,6 +346,48 @@ function Graph() {
         </div>
       </div>
 
+      {/* ---------- CATEGORY FILTERS ---------- */}
+      <div className="graph-filters-row">
+        <span className="graph-filters-label">Show:</span>
+        <div className="graph-filters-chips">
+          {CATEGORY_OPTIONS.map((cat) => {
+            const active = selectedCategories.includes(cat.id);
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                className={`graph-filter-chip ${active ? "graph-filter-chip-active" : ""
+                  }`}
+                onClick={() => handleToggleCategory(cat.id)}
+              >
+                {cat.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ---------- RESOLUTION FILTERS ---------- */}
+      <div className="graph-filters-row">
+        <span className="graph-filters-label">Date Range:</span>
+        <div className="graph-filters-chips">
+          {RESOLUTION_OPTIONS.map((opt) => {
+            const active = resolution === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                className={`graph-filter-chip ${active ? "graph-filter-chip-active" : ""
+                  }`}
+                onClick={() => setResolution(opt.id)}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* ---------- MAIN CONTENT / STATUS ---------- */}
       {isRangeInvalid ? (
         // Invalid range message
@@ -194,20 +411,16 @@ function Graph() {
             </p>
           </div>
         </div>
-      ) : data.length === 0 ? (
-        // No data state (including empty array from backend)
+      ) : !hasData ? (
+        // No data state
         <div className="graph-status-center">
           <div className="graph-card graph-card-status">
-            {error && (
-              <p className="graph-status-error">
-                {error}
-              </p>
-            )}
+            {error && <p className="graph-status-error">{error}</p>}
             <p className="graph-status-title">
               No data found for the selected date range.
             </p>
             <p className="graph-status-subtitle">
-              Try choosing a different range.
+              Try choosing a different range or resolution.
             </p>
           </div>
         </div>
@@ -218,119 +431,153 @@ function Graph() {
 
           <div className="graph-grid">
             {/* Sleep */}
-            <GraphCard title="Sleep (hours)" description="Total sleep per day">
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={data}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#33363f" />
-                  <XAxis dataKey="dateLabel" stroke="#9ea5ad" />
-                  <YAxis stroke="#9ea5ad" />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: "#1f242b", border: "none" }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="sleep"
-                    stroke="#76abae"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </GraphCard>
+            {selectedCategories.includes("sleep") && (
+              <GraphCard
+                title="Sleep (hours)"
+                description="Total sleep per day"
+              >
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={aggregatedData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#33363f" />
+                    <XAxis dataKey="dateLabel" stroke="#9ea5ad" />
+                    <YAxis stroke="#9ea5ad" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#1f242b",
+                        border: "none",
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="sleep"
+                      stroke="#76abae"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </GraphCard>
+            )}
 
             {/* Heart rate */}
-            <GraphCard
-              title="Heart Rate (vital)"
-              description="Average heart rate per day"
-            >
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={data}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#33363f" />
-                  <XAxis dataKey="dateLabel" stroke="#9ea5ad" />
-                  <YAxis stroke="#9ea5ad" />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: "#1f242b", border: "none" }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="vital"
-                    stroke="#f2b880"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </GraphCard>
+            {selectedCategories.includes("vital") && (
+              <GraphCard
+                title="Heart Rate (vital)"
+                description="Average heart rate per day"
+              >
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={aggregatedData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#33363f" />
+                    <XAxis dataKey="dateLabel" stroke="#9ea5ad" />
+                    <YAxis stroke="#9ea5ad" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#1f242b",
+                        border: "none",
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="vital"
+                      stroke="#f2b880"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </GraphCard>
+            )}
 
             {/* Mood */}
-            <GraphCard title="Mood" description="Daily mood score (1–5)">
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={data}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#33363f" />
-                  <XAxis dataKey="dateLabel" stroke="#9ea5ad" />
-                  <YAxis
-                    domain={[0, 5]}
-                    ticks={[1, 2, 3, 4, 5]}
-                    stroke="#9ea5ad"
-                  />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: "#1f242b", border: "none" }}
-                  />
-                  <Bar dataKey="mood" fill="#76abae" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </GraphCard>
+            {selectedCategories.includes("mood") && (
+              <GraphCard title="Mood" description="Daily mood score (1–5)">
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={aggregatedData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#33363f" />
+                    <XAxis dataKey="dateLabel" stroke="#9ea5ad" />
+                    <YAxis
+                      domain={[0, 5]}
+                      ticks={[1, 2, 3, 4, 5]}
+                      stroke="#9ea5ad"
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#1f242b",
+                        border: "none",
+                      }}
+                    />
+                    <Bar
+                      dataKey="mood"
+                      fill="#76abae"
+                      radius={[6, 6, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </GraphCard>
+            )}
 
             {/* Medication */}
-            <GraphCard
-              title="Medication"
-              description="1 = taken, 0 = not taken"
-            >
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={data}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#33363f" />
-                  <XAxis dataKey="dateLabel" stroke="#9ea5ad" />
-                  <YAxis domain={[0, 1]} ticks={[0, 1]} stroke="#9ea5ad" />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: "#1f242b", border: "none" }}
-                    formatter={(value) => (value === 1 ? "Taken" : "Not taken")}
-                  />
-                  <Bar
-                    dataKey="medicNumeric"
-                    fill="#7dd3fc"
-                    radius={[6, 6, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </GraphCard>
+            {selectedCategories.includes("medication") && (
+              <GraphCard
+                title="Medication"
+                description="1 = taken, 0 = not taken"
+              >
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={aggregatedData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#33363f" />
+                    <XAxis dataKey="dateLabel" stroke="#9ea5ad" />
+                    <YAxis domain={[0, 1]} ticks={[0, 1]} stroke="#9ea5ad" />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#1f242b",
+                        border: "none",
+                      }}
+                      formatter={(value) =>
+                        value === 1 ? "Taken" : "Not taken"
+                      }
+                    />
+                    <Bar
+                      dataKey="medicNumeric"
+                      fill="#7dd3fc"
+                      radius={[6, 6, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </GraphCard>
+            )}
 
             {/* Condition */}
-            <GraphCard
-              title="Condition"
-              description="Overall condition score (1–5)"
-            >
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={data}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#33363f" />
-                  <XAxis dataKey="dateLabel" stroke="#9ea5ad" />
-                  <YAxis
-                    domain={[0, 5]}
-                    ticks={[1, 2, 3, 4, 5]}
-                    stroke="#9ea5ad"
-                  />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: "#1f242b", border: "none" }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="condition"
-                    stroke="#a5b4fc"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </GraphCard>
+            {selectedCategories.includes("condition") && (
+              <GraphCard
+                title="Condition"
+                description="Overall condition score (1–5)"
+              >
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={aggregatedData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#33363f" />
+                    <XAxis dataKey="dateLabel" stroke="#9ea5ad" />
+                    <YAxis
+                      domain={[0, 5]}
+                      ticks={[1, 2, 3, 4, 5]}
+                      stroke="#9ea5ad"
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#1f242b",
+                        border: "none",
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="condition"
+                      stroke="#a5b4fc"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </GraphCard>
+            )}
           </div>
         </>
       )}
