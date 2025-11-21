@@ -64,7 +64,7 @@ class ResponseFilter:
     """Filter and classify health queries"""
     
     CLASSIFICATIONS = {
-        'SYMPTOM': ['pain', 'fever', 'headache', 'nausea', 'cough', 'dizzy', 'tired', 'sore'],
+        'SYMPTOM': ['pain', 'fever', 'headache', 'nausea', 'cough', 'dizzy', 'tired', 'sore', 'dehydration'],
         'MEDICATION': ['medicine', 'drug', 'prescription', 'pill', 'dosage', 'medication'],
         'TEST_RESULT': ['test', 'result', 'lab', 'blood work', 'scan', 'xray'],
         'VITAL_SIGNS': ['blood pressure', 'heart rate', 'temperature', 'pulse', 'oxygen'],
