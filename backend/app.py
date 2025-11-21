@@ -294,6 +294,12 @@ Provide a helpful, educational response (2-3 sentences max):"""
             with open("data/health_logs_seed.json", "r") as f:
                 health_logs = json.load(f)
 
+            if start_date:
+                start = datetime.strptime(start_date, "%Y-%m-%d")
+                now = datetime.now()
+                if start > now:
+                    return jsonify({"error": "Start date cannot be in the future."}), 400
+
             # Apply date filtering (seed file dates are MM-DD-YYYY)
             if start_date or end_date:
                 filtered_logs = []
@@ -337,21 +343,6 @@ Provide a helpful, educational response (2-3 sentences max):"""
                 health_logs = filtered_logs
 
 
-
-
-        #     if start_date:
-        #         start = datetime.strptime(start_date, "%Y-%m-%d")
-        #         ow = datetime.now()
-        #         if start > now:
-        #             return jsonify({"error": "Start date cannot be in the future."}), 400
-
-        # # Validate custom date range: start after end
-        #     if start_date and end_date and datetime.strptime(start_date, "%Y-%m-%d") > datetime.strptime(end_date, "%Y-%m-%d"):
-        #         return jsonify({"error": "Start date must not be after end date."}), 400
-
-        # # Return 404 if no data after filtering
-        #     if not health_logs:
-        #         return jsonify({"error": "No data found between the selected date range."}), 404
 
             # ---- CSV export ----
             if export_format == "csv":
