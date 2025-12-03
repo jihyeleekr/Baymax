@@ -487,6 +487,117 @@ Provide a helpful, educational response (2-3 sentences max):"""
 
         except Exception as e:
             return jsonify({"error": str(e)}), 500
+    # ----------------- Single day log (for calendar form) -----------------
+    @app.route("/api/logs/one", methods=["GET"])
+    def get_single_log():
+        """
+        React:
+          GET /api/logs/one?date=2025-12-02  (YYYY-MM-DD)
+        Returns a single health log for the specified date.:
+          {
+            "date": "2025-12-02",
+            "tookMedication": true,
+            "sleepHours": 7,
+            "heartRate": 80,
+            "systolic": 120,
+            "diastolic": 80,
+            "mood": 4,
+            "symptom": "fever",
+            "note": "..."
+          }
+        """
+        try:
+            date_iso = request.args.get("date")
+            if not date_iso:
+                return jsonify({"error": "date query param is required"}), 400
+
+            # YYYY-MM-DD -> MM-DD-YYYY 
+            try:
+                dt = datetime.strptime(date_iso[:10], "%Y-%m-%d")
+            except ValueError:
+                return jsonify({"error": "Invalid date format"}), 400
+
+            date_str = dt.strftime("%m-%d-%Y")
+
+            doc = db.health_logs.find_one({"date": date_str})
+            if not doc:
+                return jsonify({}), 200   
+
+            doc["_id"] = str(doc["_id"])
+
+            resp = {
+                "date": date_iso,
+                "tookMedication": doc.get("took_medication", False),
+                "sleepHours": doc.get("hours_of_sleep"),
+                "heartRate": doc.get("heart_rate"),
+                "systolic": doc.get("systolic"),
+                "diastolic": doc.get("diastolic"),
+                "mood": doc.get("mood"),
+                "symptom": doc.get("symptom"),
+                "note": doc.get("note", ""),
+            }
+            return jsonify(resp), 200
+
+        except Exception as e:
+            print("❌ get_single_log error:", e)
+            return jsonify({"error": str(e)}), 500
+
+
+    @app.route("/api/logs", methods=["POST"])
+    def upsert_log():
+        """
+        React:
+          POST /api/logs
+          {
+            "date": "2025-12-02",
+            "tookMedication": true,
+            "sleepHours": 7,
+            "heartRate": 80,
+            "systolic": 120,
+            "diastolic": 80,
+            "mood": 4,
+            "symptom": "fever",
+            "note": "..."
+          }
+        Upsert a health log for the specified date.
+        If the log exists, it will be updated; otherwise, a new log will be created"""
+        try:
+            data = request.json or {}
+            date_iso = data.get("date")
+            if not date_iso:
+                return jsonify({"error": "date is required"}), 400
+
+            try:
+                dt = datetime.strptime(date_iso[:10], "%Y-%m-%d")
+            except ValueError:
+                return jsonify({"error": "Invalid date format"}), 400
+
+            date_str = dt.strftime("%m-%d-%Y")
+
+            doc = {
+                "date": date_str,
+                "took_medication": bool(data.get("tookMedication", False)),
+                "hours_of_sleep": data.get("sleepHours"),
+                "heart_rate": data.get("heartRate"),
+                "systolic": data.get("systolic"),
+                "diastolic": data.get("diastolic"),
+                "mood": data.get("mood"),
+                "symptom": data.get("symptom"),
+                "note": data.get("note", ""),
+                "updated_at": datetime.now(),
+            }
+
+            db.health_logs.update_one(
+                {"date": date_str},
+                {"$set": doc},
+                upsert=True,
+            )
+
+            return jsonify({"ok": True}), 200
+
+        except Exception as e:
+            print("❌ upsert_log error:", e)
+            return jsonify({"error": str(e)}), 500
 
     # ----------------- Export preview -----------------
     @app.route("/api/export/preview", methods=["POST"])
