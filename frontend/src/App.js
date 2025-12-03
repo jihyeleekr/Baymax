@@ -4,10 +4,11 @@ import Nav from "./Nav";
 import Team from "./Team/Team";
 import Home from "./Home";
 import Footer from "./Footer/Footer";
-import Upload from "./Upload/Upload";
+import Upload from "./Upload";
 import Export from "./Export/Export";
 import Graph from "./Graph/Graph";
 import Log from "./Log/Log";
+
 
 function App() {
   return (

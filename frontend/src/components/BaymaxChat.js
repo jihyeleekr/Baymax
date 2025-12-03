@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from '../SupabaseClient';
+import { useSearchParams } from "react-router-dom"; // ADD THIS
 import "./BaymaxChat.css";
 
 // Utility: get personalized LS key
@@ -17,12 +18,18 @@ function getFormattedTime() {
 }
 
 function BaymaxChat() {
+  // 🆕 GET PRESCRIPTION ID FROM URL
+  const [searchParams] = useSearchParams();
+  const prescriptionId = searchParams.get('prescription_id');
+
   // Store current user (for personalization)
   const [user, setUser] = useState(null);
 
+  // 🆕 Store prescription details
+  const [prescription, setPrescription] = useState(null);
+
   // Load initial messages according to user
   const [messages, setMessages] = useState(() => {
-    // Temporarily load top-level guest data before true user known
     const saved = localStorage.getItem("baymax_chat_history_guest");
     if (saved) return JSON.parse(saved);
     return [
@@ -46,16 +53,33 @@ function BaymaxChat() {
 
   // Get user on mount and listen for log in/out
   useEffect(() => {
-    // Initial check
     supabase.auth.getUser().then(({ data }) => {
       setUser(data?.user || null);
     });
-    // Listen for auth state changes
     const { data: { subscription } = {} } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
     return () => { subscription && subscription.unsubscribe(); };
   }, []);
+
+  // 🆕 LOAD PRESCRIPTION IF ID IS PROVIDED
+  useEffect(() => {
+    if (prescriptionId) {
+      fetch(`http://localhost:5001/api/prescription/${prescriptionId}`)
+        .then(res => res.json())
+        .then(data => {
+          setPrescription(data);
+          // Add welcome message about prescription
+          setMessages(prev => [...prev, {
+            id: Date.now(),
+            sender: "bot",
+            text: "📄 I can see your uploaded prescription. What would you like to know about it?",
+            time: getFormattedTime()
+          }]);
+        })
+        .catch(err => console.error('Failed to load prescription:', err));
+    }
+  }, [prescriptionId]);
 
   // When user changes, load their personal chat history
   useEffect(() => {
@@ -113,16 +137,19 @@ function BaymaxChat() {
     setInput("");
 
     try {
-      // If user is logged in, get full user object (for id or email)
       const userResult = await supabase.auth.getUser();
       const currentUser = userResult.data?.user;
       const userId = currentUser ? currentUser.id : "anonymous";
 
-      // API CALL WITH USER ID
+      // 🆕 INCLUDE PRESCRIPTION_ID IN REQUEST
       const response = await fetch('http://localhost:5001/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userInput, user_id: userId })
+        body: JSON.stringify({ 
+          message: userInput, 
+          user_id: userId,
+          prescription_id: prescriptionId  // 🔑 ADD THIS
+        })
       });
 
       const data = await response.json();
@@ -161,9 +188,6 @@ function BaymaxChat() {
     }
   };
 
-  // ...return (...) stays the same
-
-
   return (
     <div className="chat-page">
       <div className="chat-layout">
@@ -175,6 +199,18 @@ function BaymaxChat() {
               <p className="chat-subtitle">
                 Ask questions about your health logs, uploads, and reports in natural language.
               </p>
+              {/* 🆕 SHOW PRESCRIPTION BANNER IF LOADED */}
+              {prescription && (
+                <div className="prescription-banner" style={{
+                  background: '#e3f2fd',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  marginTop: '8px',
+                  fontSize: '14px'
+                }}>
+                  📄 Discussing prescription uploaded on {new Date(prescription.uploaded_at).toLocaleDateString()}
+                </div>
+              )}
             </div>
           </header>
 
@@ -224,9 +260,20 @@ function BaymaxChat() {
           <div className="sidebar-card secondary">
             <h3>Example prompts</h3>
             <ul>
-              <li>"Summarize my last 3 blood test results."</li>
-              <li>"Are there any worrying trends in my heart rate logs?"</li>
-              <li>"Create a short summary I can share with my doctor."</li>
+              {/* 🆕 CHANGE EXAMPLES IF PRESCRIPTION IS LOADED */}
+              {prescription ? (
+                <>
+                  <li>"What is Metformin used for?"</li>
+                  <li>"What are the side effects of Amlodipine?"</li>
+                  <li>"Can I take these medications with alcohol?"</li>
+                </>
+              ) : (
+                <>
+                  <li>"Summarize my last 3 blood test results."</li>
+                  <li>"Are there any worrying trends in my heart rate logs?"</li>
+                  <li>"Create a short summary I can share with my doctor."</li>
+                </>
+              )}
             </ul>
           </div>
         </aside>
