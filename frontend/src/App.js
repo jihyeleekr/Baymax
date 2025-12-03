@@ -17,7 +17,7 @@ function App() {
         <div className="app-content">
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/baymax" element={<BaymaxChat />} />  {/* This is correct */}
+            <Route path="/baymax" element={<BaymaxChat />} />
             <Route path="/upload" element={<Upload />} />
             <Route path="/export" element={<Export />} />
             <Route path="/graph" element={<Graph />} />

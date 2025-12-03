@@ -21,7 +21,7 @@ function Team() {
 
         {/* Hari */}
         <div className="team-card">
-          <div className="team-avatar">B</div>
+          <div className="team-avatar">H</div>
           <h3 className="team-name">Hari Amin</h3>
           <p className="team-role">Chatbot Integration & AI Engineer</p>
         </div>
@@ -35,7 +35,7 @@ function Team() {
 
         {/* Jihye */}
         <div className="team-card">
-          <div className="team-avatar">D</div>
+          <div className="team-avatar">J</div>
           <h3 className="team-name">Jihye Lee</h3>
           <p className="team-role">Frontend Developer & UI/UX Lead</p>
         </div>

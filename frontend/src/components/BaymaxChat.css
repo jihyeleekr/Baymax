@@ -1,27 +1,20 @@
-/* 전체 채팅 페이지 영역 */
+/*full page styeling*/
 .chat-page {
   background: linear-gradient(135deg, #222831, #1a1f25);
   flex: 1;
-  /* App 안에서 남는 높이 꽉 채우기 */
   display: flex;
-  /* 내부에 chat-layout 하나만 둘 거라 flex */
   padding: 60px 60px 20px;
-  /* 🔧 전체 컨텐츠를 더 아래까지 확장 */
   color: #eeeeee;
 }
 
-/* 좌/우 레이아웃 */
 .chat-layout {
   display: flex;
   gap: 32px;
   width: 100%;
   min-height: 0;
-  /* 자식이 부모 높이를 억지로 늘리지 않도록 */
   flex: 1;
-  /* 🔧 Nav~Footer 사이 세로 공간을 채우기 */
 }
 
-/* 왼쪽 패널 */
 .chat-panel {
   flex: 1.9;
   background-color: #1f242b;
@@ -31,7 +24,6 @@
   flex-direction: column;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
   min-height: 0;
-  /* 내부 스크롤 허용을 위해 필요 */
 }
 
 .chat-header {
@@ -50,11 +42,8 @@
   margin: 0;
 }
 
-/* 채팅 내용 영역 */
 .chat-window {
-  /* 고정 높이 박스 + 내부 스크롤 */
   height: 360px;
-  /* 🔧 320 → 360 으로 살짝 키움 */
   max-height: 360px;
   margin-top: 12px;
   margin-bottom: 12px;
@@ -62,10 +51,8 @@
   background-color: #181c22;
   border-radius: 14px;
   overflow-y: auto;
-  /* 여기만 스크롤 */
 }
 
-/* 메시지 정렬 */
 .message-row {
   display: flex;
   margin-bottom: 10px;
@@ -79,7 +66,6 @@
   justify-content: flex-start;
 }
 
-/* 말풍선 */
 .message-bubble {
   max-width: 75%;
   padding: 10px 14px;
@@ -107,7 +93,6 @@
   opacity: 0.8;
 }
 
-/* 입력창 */
 .chat-input-bar {
   display: flex;
   gap: 10px;
@@ -152,7 +137,6 @@
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
 }
 
-/* 오른쪽 사이드 카드 */
 .chat-sidebar {
   flex: 0.7;
   display: flex;
@@ -186,7 +170,6 @@
   background-color: #1f242b;
 }
 
-/* 반응형 */
 @media (max-width: 900px) {
   .chat-page {
     padding: 24px 16px 20px;
@@ -203,7 +186,6 @@
 
   .chat-window {
     height: 260px;
-    /* 모바일에서는 조금 더 낮게 */
     max-height: 260px;
   }
 }

@@ -4,13 +4,10 @@
   justify-content: flex-start;
   align-items: center;
   gap: 40px;
-  /* ⬅ 간격 약간 더 줄임 */
   padding: 30px 50px 40px;
-  /* ⬅ 위·아래 padding 더 줄인 버전 */
   background: linear-gradient(135deg, #222831, #1a1f25);
   color: #eeeeee;
   min-height: calc(100vh - 110px);
-  /* ⬅ 화면 높이에 더 정확히 맞게 */
 }
 
 .home-left {
