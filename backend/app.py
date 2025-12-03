@@ -16,6 +16,17 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib import colors
 
+import PyPDF2
+from werkzeug.utils import secure_filename
+import pytesseract
+from PIL import Image
+UPLOAD_FOLDER = 'uploads/prescriptions'
+ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg'}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 load_dotenv()
 
 # Initialize Gemini service
@@ -120,9 +131,10 @@ def create_app():
         return jsonify({"status": "healthy", "database": "connected"})
 
     # ----------------- Chat (Gemini) with ANONYMIZATION -----------------
+        # ----------------- Chat (Gemini) with ANONYMIZATION AND PRESCRIPTION CONTEXT -----------------
     @app.route("/api/chat", methods=["POST"])
     def chat():
-        """Chat endpoint with PHI anonymization and filtering"""
+        """Chat endpoint with PHI anonymization, filtering, and prescription context"""
         if gemini_service is None:
             return jsonify({"error": "Gemini API not configured"}), 500
 
@@ -130,6 +142,7 @@ def create_app():
             data = request.json
             user_message = data.get("message", "")
             user_id = data.get("user_id", "anonymous")
+            prescription_id = data.get("prescription_id")  # 🆕 NEW
 
             if not user_message:
                 return jsonify({"error": "No message provided"}), 400
@@ -148,7 +161,6 @@ def create_app():
                     'timestamp': datetime.now().isoformat()
                 }
                 
-                # Log emergency
                 log_conversation(db, user_hash, anon_message, emergency_response['response'], 
                                'EMERGENCY', phi_map, True)
                 
@@ -157,7 +169,34 @@ def create_app():
             # 3️⃣ CLASSIFY QUERY
             classification = ResponseFilter.classify(anon_message)
 
-            # 4️⃣ GENERATE RESPONSE WITH SAFETY CONTEXT
+            # 🆕 4️⃣ LOAD PRESCRIPTION CONTEXT IF PROVIDED
+            prescription_context = ""
+            if prescription_id:
+                from bson.objectid import ObjectId
+                try:
+                    prescription = db.prescriptions.find_one({'_id': ObjectId(prescription_id)})
+                    
+                    if prescription:
+                        meds = prescription.get('medications', [])
+                        med_list = '\n'.join([f"- {m['name']} {m['dosage']}" for m in meds])
+                        warnings = '\n'.join([f"- {w}" for w in prescription.get('warnings', [])])
+                        
+                        prescription_context = f"""
+PRESCRIPTION CONTEXT:
+The user has uploaded a prescription with:
+
+Medications:
+{med_list}
+
+Warnings:
+{warnings}
+
+Full prescription text: {prescription.get('extracted_text', '')[:500]}...
+"""
+                except Exception as e:
+                    print(f"Error loading prescription: {e}")
+
+            # 5️⃣ GENERATE RESPONSE WITH SAFETY CONTEXT AND PRESCRIPTION
             context_prompt = f"""You are Baymax, a health information assistant. Follow these rules:
 
 1. NEVER provide medical diagnosis or treatment advice
@@ -166,6 +205,8 @@ def create_app():
 4. Provide general, educational health information only
 5. Be empathetic and supportive
 
+{prescription_context}
+
 Query Type: {classification}
 User Query: "{anon_message}"
 
@@ -173,7 +214,7 @@ Provide a helpful, educational response (2-3 sentences max):"""
 
             bot_response = gemini_service.chat(context_prompt)
 
-            # 5️⃣ ADD SAFETY DISCLAIMER
+            # 6️⃣ ADD SAFETY DISCLAIMER
             disclaimers = {
                 'SYMPTOM': '⚠️ For symptom evaluation, please consult a healthcare provider.\n\n',
                 'TEST_RESULT': '⚠️ For test result interpretation, please speak with your doctor.\n\n',
@@ -184,7 +225,7 @@ Provide a helpful, educational response (2-3 sentences max):"""
             disclaimer = disclaimers.get(classification, '')
             final_response = disclaimer + bot_response
 
-            # 6️⃣ LOG TO DATABASE (ANONYMIZED)
+            # 7️⃣ LOG TO DATABASE (ANONYMIZED)
             log_conversation(db, user_hash, anon_message, final_response, classification, phi_map, False)
 
             return jsonify({
@@ -198,6 +239,7 @@ Provide a helpful, educational response (2-3 sentences max):"""
         except Exception as e:
             print(f"❌ Chat error: {str(e)}")
             return jsonify({"error": str(e)}), 500
+
 
     # ----------------- Health logs API (from MongoDB) -----------------
     @app.route("/api/health-logs", methods=["GET"])
@@ -487,6 +529,103 @@ Provide a helpful, educational response (2-3 sentences max):"""
 
         except Exception as e:
             return jsonify({"error": str(e)}), 500
+
+
+     # ----------------- Prescription Upload -----------------
+
+
+    @app.route("/api/prescription/upload", methods=["POST"])
+    def upload_prescription():
+        """Upload and process prescription file"""
+        try:
+            if 'file' not in request.files:
+                return jsonify({"error": "No file provided"}), 400
+            
+            file = request.files['file']
+            user_id = request.form.get('user_id', 'anonymous')
+            
+            if file.filename == '':
+                return jsonify({"error": "No file selected"}), 400
+            
+            if not allowed_file(file.filename):
+                return jsonify({"error": "Invalid file type. Use PDF, PNG, or JPG"}), 400
+            
+            # Check file size
+            file.seek(0, 2)  # Seek to end
+            size = file.tell()
+            file.seek(0)  # Reset
+            
+            if size > MAX_FILE_SIZE:
+                return jsonify({"error": "File too large. Max 5MB"}), 400
+            
+            # Generate secure filename
+            filename = secure_filename(file.filename)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            user_hash = PHIAnonymizer.hash_identifier(user_id)
+            unique_filename = f"{user_hash}_{timestamp}_{filename}"
+            
+            # Save file
+            os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+            filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
+            file.save(filepath)
+            
+            # Extract text based on file type
+            extracted_text = ""
+            if filename.lower().endswith('.pdf'):
+                extracted_text = extract_pdf_text(filepath)
+            else:
+                extracted_text = extract_image_text(filepath)
+            
+            # Parse prescription data
+            prescription_data = parse_prescription(extracted_text)
+            
+            # Generate AI explanation
+            explanation = generate_prescription_explanation(extracted_text)
+            
+            # Store in MongoDB
+            doc = {
+                'user_id_hash': user_hash,
+                'filename': unique_filename,
+                'filepath': filepath,
+                'extracted_text': extracted_text,
+                'medications': prescription_data['medications'],
+                'warnings': prescription_data['warnings'],
+                'ai_explanation': explanation,
+                'uploaded_at': datetime.now()
+            }
+            
+            result = db.prescriptions.insert_one(doc)
+            doc['_id'] = str(result.inserted_id)
+            
+            return jsonify({
+                'success': True,
+                'prescription_id': str(result.inserted_id),
+                'extracted_text': extracted_text,
+                'medications': prescription_data['medications'],
+                'warnings': prescription_data['warnings'],
+                'explanation': explanation
+            }), 200
+            
+        except Exception as e:
+            print(f"❌ Upload error: {str(e)}")
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/prescription/<prescription_id>", methods=["GET"])
+    def get_prescription(prescription_id):
+        """Retrieve prescription by ID"""
+        try:
+            from bson.objectid import ObjectId
+            
+            doc = db.prescriptions.find_one({'_id': ObjectId(prescription_id)})
+            if not doc:
+                return jsonify({"error": "Prescription not found"}), 404
+            
+            doc['_id'] = str(doc['_id'])
+            return jsonify(doc), 200
+            
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
     # ----------------- Single day log (for calendar form) -----------------
     @app.route("/api/logs/one", methods=["GET"])
     def get_single_log():
@@ -704,6 +843,92 @@ def log_conversation(db, user_hash, user_msg, bot_response, classification, phi_
         
     except Exception as e:
         print(f"❌ Failed to log: {str(e)}")
+
+
+
+#helpers for the upload function
+
+def extract_pdf_text(filepath):
+    """Extract text from PDF"""
+    text = ""
+    try:
+        with open(filepath, 'rb') as f:
+            reader = PyPDF2.PdfReader(f)
+            for page in reader.pages:
+                text += page.extract_text()
+    except Exception as e:
+        print(f"PDF extraction error: {e}")
+    return text
+
+
+def extract_image_text(filepath):
+    """Extract text from image using OCR"""
+    try:
+        image = Image.open(filepath)
+        text = pytesseract.image_to_string(image)
+        return text
+    except Exception as e:
+        print(f"OCR error: {e}")
+        return ""
+
+
+def parse_prescription(text):
+    """Parse medications and warnings from text"""
+    medications = []
+    warnings = []
+    
+    # Regex patterns for common medication formats
+    med_pattern = r'([A-Z][a-z]+(?:ide|cin|ol|pril|stat|form|mine|cillin))\s+(\d+\s*mg)'
+    matches = re.findall(med_pattern, text, re.IGNORECASE)
+    
+    for name, dosage in matches:
+        medications.append({
+            'name': name,
+            'dosage': dosage
+        })
+    
+    # Extract warnings
+    if 'BLACK BOX WARNING' in text.upper():
+        warnings.append('BLACK BOX WARNING present')
+    if 'allerg' in text.lower():
+        warnings.append('Allergy information detected')
+    if 'contraindication' in text.lower():
+        warnings.append('Contraindications noted')
+    
+    return {
+        'medications': medications,
+        'warnings': warnings
+    }
+
+
+def generate_prescription_explanation(text):
+    """Generate patient-friendly explanation using Gemini"""
+    if gemini_service is None:
+        return "Unable to generate explanation - AI service unavailable"
+    
+    prompt = f"""You are a helpful health assistant. A patient has uploaded their prescription. 
+Explain it in simple, patient-friendly language.
+
+PRESCRIPTION TEXT:
+{text[:1000]}
+
+Provide a brief summary (3-4 sentences) covering:
+1. What medications are prescribed and what they treat
+2. Key warnings or side effects to watch for
+3. Important instructions
+
+DO NOT provide medical advice or suggest changes to treatment."""
+    
+    try:
+        return gemini_service.chat(prompt)
+    except Exception as e:
+        print(f"Gemini error: {e}")
+        return "Unable to generate explanation"
+
+
+
+
+
 
 if __name__ == "__main__":
     app = create_app()
