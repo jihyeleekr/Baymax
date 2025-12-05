@@ -741,6 +741,8 @@ Provide a helpful, educational response (2-3 sentences max):"""
             start_date = data.get("start_date")
             end_date = data.get("end_date")
 
+            # -----------READ SEED DATA ----------
+
             with open("data/health_logs_seed.json", "r") as f:
                 health_logs = json.load(f)
 
@@ -917,11 +919,6 @@ DO NOT provide medical advice or suggest changes to treatment."""
     except Exception as e:
         print(f"Gemini error: {e}")
         return "Unable to generate explanation"
-
-
-
-
-
 
 if __name__ == "__main__":
     app = create_app()

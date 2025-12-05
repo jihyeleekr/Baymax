@@ -1,330 +1,272 @@
 [
   {
-    "date": "11-01-2025",
-    "hours_of_sleep": 6.2,
-    "symptom": "Mild headache in the morning",
+    "date": "10-01-2025",
+    "tookMedication": true,
+    "sleepHours": 7.1,
+    "vital_bpm": 76,
+    "mood": 4,
+    "symptom": "none",
+    "note": ""
+  },
+  {
+    "date": "10-03-2025",
+    "tookMedication": false,
+    "sleepHours": 5.4,
+    "vital_bpm": 82,
+    "mood": 2,
+    "symptom": "headache",
+    "note": "Stayed up late studying"
+  },
+  {
+    "date": "10-05-2025",
+    "tookMedication": true,
+    "sleepHours": 8.0,
+    "vital_bpm": 74,
+    "mood": 5,
+    "symptom": "none",
+    "note": ""
+  },
+  {
+    "date": "10-07-2025",
+    "tookMedication": false,
+    "sleepHours": 6.2,
+    "vital_bpm": 90,
+    "mood": 2,
+    "symptom": "other",
+    "note": "Felt dizzy after morning workout"
+  },
+  {
+    "date": "10-09-2025",
+    "tookMedication": true,
+    "sleepHours": 7.6,
+    "vital_bpm": 73,
     "mood": 3,
-    "took_medication": true,
-    "vital_bpm": 78
+    "symptom": "cough",
+    "note": "Light dry cough all day"
+  },
+  {
+    "date": "10-12-2025",
+    "tookMedication": true,
+    "sleepHours": 6.9,
+    "vital_bpm": 81,
+    "mood": 4,
+    "symptom": "none",
+    "note": ""
+  },
+  {
+    "date": "10-14-2025",
+    "tookMedication": false,
+    "sleepHours": 5.1,
+    "vital_bpm": 88,
+    "mood": 2,
+    "symptom": "nausea",
+    "note": "Mild nausea after skipping breakfast"
+  },
+  {
+    "date": "10-16-2025",
+    "tookMedication": true,
+    "sleepHours": 7.3,
+    "vital_bpm": 79,
+    "mood": 4,
+    "symptom": "none",
+    "note": ""
+  },
+  {
+    "date": "10-18-2025",
+    "tookMedication": true,
+    "sleepHours": 8.1,
+    "vital_bpm": 71,
+    "mood": 5,
+    "symptom": "none",
+    "note": ""
+  },
+  {
+    "date": "10-21-2025",
+    "tookMedication": false,
+    "sleepHours": 6.0,
+    "vital_bpm": 86,
+    "mood": 2,
+    "symptom": "pain",
+    "note": "Back pain from sitting too long"
+  },
+  {
+    "date": "10-23-2025",
+    "tookMedication": true,
+    "sleepHours": 7.2,
+    "vital_bpm": 78,
+    "mood": 3,
+    "symptom": "none",
+    "note": ""
+  },
+  {
+    "date": "10-26-2025",
+    "tookMedication": true,
+    "sleepHours": 8.4,
+    "vital_bpm": 70,
+    "mood": 5,
+    "symptom": "none",
+    "note": ""
+  },
+  {
+    "date": "10-28-2025",
+    "tookMedication": false,
+    "sleepHours": 5.0,
+    "vital_bpm": 92,
+    "mood": 1,
+    "symptom": "fever",
+    "note": "Felt warm and exhausted"
+  },
+  {
+    "date": "10-30-2025",
+    "tookMedication": true,
+    "sleepHours": 6.8,
+    "vital_bpm": 82,
+    "mood": 3,
+    "symptom": "cough",
+    "note": "Cough improving compared to last week"
   },
   {
     "date": "11-02-2025",
-    "hours_of_sleep": 7.1,
-    "symptom": "Slight fatigue after classes",
+    "tookMedication": true,
+    "sleepHours": 7.0,
+    "vital_bpm": 75,
     "mood": 4,
-    "took_medication": true,
-    "vital_bpm": null
-  },
-  {
-    "date": "11-03-2025",
-    "hours_of_sleep": 5.8,
-    "symptom": null,
-    "mood": 2,
-    "took_medication": false,
-    "vital_bpm": 84
+    "symptom": "none",
+    "note": ""
   },
   {
     "date": "11-04-2025",
-    "hours_of_sleep": null,
-    "symptom": "No major symptoms",
-    "mood": 5,
-    "took_medication": true,
-    "vital_bpm": 69
-  },
-  {
-    "date": "11-05-2025",
-    "hours_of_sleep": 4.9,
-    "symptom": "Stress from studying for exams",
+    "tookMedication": false,
+    "sleepHours": 6.1,
+    "vital_bpm": 89,
     "mood": 2,
-    "took_medication": null,
-    "vital_bpm": 88
+    "symptom": "headache",
+    "note": "Migraine after long computer use"
   },
   {
     "date": "11-06-2025",
-    "hours_of_sleep": 7.6,
-    "symptom": "Slight headache in the afternoon",
-    "mood": 3,
-    "took_medication": true,
-    "vital_bpm": null
-  },
-  {
-    "date": "11-07-2025",
-    "hours_of_sleep": 6.8,
-    "symptom": "Fatigue after work",
-    "mood": null,
-    "took_medication": false,
-    "vital_bpm": 80
+    "tookMedication": true,
+    "sleepHours": 7.9,
+    "vital_bpm": 72,
+    "mood": 4,
+    "symptom": "none",
+    "note": ""
   },
   {
     "date": "11-08-2025",
-    "hours_of_sleep": 8.0,
-    "symptom": null,
+    "tookMedication": true,
+    "sleepHours": 8.2,
+    "vital_bpm": 69,
     "mood": 5,
-    "took_medication": true,
-    "vital_bpm": 72
-  },
-  {
-    "date": "11-09-2025",
-    "hours_of_sleep": 7.4,
-    "symptom": "Mild cold symptoms, slight sore throat",
-    "mood": 3,
-    "took_medication": null,
-    "vital_bpm": 76
+    "symptom": "none",
+    "note": ""
   },
   {
     "date": "11-10-2025",
-    "hours_of_sleep": null,
-    "symptom": "Very tired from lack of sleep",
+    "tookMedication": false,
+    "sleepHours": 5.7,
+    "vital_bpm": 87,
     "mood": 2,
-    "took_medication": false,
-    "vital_bpm": 83
-  },
-  {
-    "date": "11-11-2025",
-    "hours_of_sleep": 8.4,
-    "symptom": null,
-    "mood": 5,
-    "took_medication": true,
-    "vital_bpm": 70
-  },
-  {
-    "date": "11-12-2025",
-    "hours_of_sleep": 7.9,
-    "symptom": "Light muscle soreness from exercise",
-    "mood": 4,
-    "took_medication": true,
-    "vital_bpm": null
+    "symptom": "pain",
+    "note": "Shoulder tension from workouts"
   },
   {
     "date": "11-13-2025",
-    "hours_of_sleep": 5.5,
-    "symptom": "Stayed up late working on assignments",
-    "mood": 2,
-    "took_medication": null,
-    "vital_bpm": 86
-  },
-  {
-    "date": "11-14-2025",
-    "hours_of_sleep": 6.9,
-    "symptom": "Slight headache",
+    "tookMedication": true,
+    "sleepHours": 7.3,
+    "vital_bpm": 77,
     "mood": 3,
-    "took_medication": true,
-    "vital_bpm": 79
+    "symptom": "none",
+    "note": ""
   },
   {
     "date": "11-15-2025",
-    "hours_of_sleep": 7.3,
-    "symptom": null,
-    "mood": 4,
-    "took_medication": true,
-    "vital_bpm": null
-  },
-  {
-    "date": "11-16-2025",
-    "hours_of_sleep": 8.1,
-    "symptom": "Feeling well-rested",
+    "tookMedication": true,
+    "sleepHours": 8.0,
+    "vital_bpm": 71,
     "mood": 5,
-    "took_medication": null,
-    "vital_bpm": 71
-  },
-  {
-    "date": "11-17-2025",
-    "hours_of_sleep": 4.4,
-    "symptom": "Lack of sleep from studying",
-    "mood": 1,
-    "took_medication": false,
-    "vital_bpm": null
+    "symptom": "none",
+    "note": ""
   },
   {
     "date": "11-18-2025",
-    "hours_of_sleep": null,
-    "symptom": "Slight nausea in the afternoon",
-    "mood": 3,
-    "took_medication": true,
-    "vital_bpm": 81
-  },
-  {
-    "date": "11-19-2025",
-    "hours_of_sleep": 7.6,
-    "symptom": "Light cough but feeling stable",
-    "mood": 3,
-    "took_medication": true,
-    "vital_bpm": null
-  },
-  {
-    "date": "11-20-2025",
-    "hours_of_sleep": 8.2,
-    "symptom": null,
-    "mood": 5,
-    "took_medication": true,
-    "vital_bpm": 69
+    "tookMedication": false,
+    "sleepHours": 6.4,
+    "vital_bpm": 90,
+    "mood": 2,
+    "symptom": "other",
+    "note": "Felt low energy throughout the day"
   },
   {
     "date": "11-21-2025",
-    "hours_of_sleep": 6.7,
-    "symptom": "Mild eye strain from screen time",
-    "mood": 3,
-    "took_medication": true,
-    "vital_bpm": 77
-  },
-  {
-    "date": "11-22-2025",
-    "hours_of_sleep": 7.9,
-    "symptom": "No major symptoms, relaxed weekend",
-    "mood": 5,
-    "took_medication": true,
-    "vital_bpm": 72
-  },
-  {
-    "date": "11-23-2025",
-    "hours_of_sleep": 5.2,
-    "symptom": "Stayed up late watching lectures",
-    "mood": 2,
-    "took_medication": false,
-    "vital_bpm": 85
+    "tookMedication": true,
+    "sleepHours": 7.5,
+    "vital_bpm": 76,
+    "mood": 4,
+    "symptom": "none",
+    "note": ""
   },
   {
     "date": "11-24-2025",
-    "hours_of_sleep": 6.4,
-    "symptom": "Slight neck stiffness",
-    "mood": 3,
-    "took_medication": true,
-    "vital_bpm": 79
-  },
-  {
-    "date": "11-25-2025",
-    "hours_of_sleep": 7.1,
-    "symptom": "Feeling okay, light fatigue in evening",
-    "mood": 4,
-    "took_medication": true,
-    "vital_bpm": 74
-  },
-  {
-    "date": "11-26-2025",
-    "hours_of_sleep": 4.8,
-    "symptom": "Stress from upcoming deadlines",
-    "mood": 2,
-    "took_medication": false,
-    "vital_bpm": 88
+    "tookMedication": true,
+    "sleepHours": 8.1,
+    "vital_bpm": 73,
+    "mood": 5,
+    "symptom": "none",
+    "note": ""
   },
   {
     "date": "11-27-2025",
-    "hours_of_sleep": 8.3,
-    "symptom": "Well-rested, no symptoms",
-    "mood": 5,
-    "took_medication": true,
-    "vital_bpm": 70
-  },
-  {
-    "date": "11-28-2025",
-    "hours_of_sleep": 6.0,
-    "symptom": "Mild back discomfort from sitting too long",
-    "mood": 3,
-    "took_medication": true,
-    "vital_bpm": 78
-  },
-  {
-    "date": "11-29-2025",
-    "hours_of_sleep": 7.5,
-    "symptom": "Slight sore throat in the morning",
-    "mood": 3,
-    "took_medication": true,
-    "vital_bpm": 76
-  },
-  {
-    "date": "11-30-2025",
-    "hours_of_sleep": 6.9,
-    "symptom": "Tired after a busy day outside",
-    "mood": 4,
-    "took_medication": false,
-    "vital_bpm": 82
+    "tookMedication": false,
+    "sleepHours": 5.9,
+    "vital_bpm": 85,
+    "mood": 2,
+    "symptom": "nausea",
+    "note": "Skipped lunch and felt unwell"
   },
   {
     "date": "12-01-2025",
-    "hours_of_sleep": 7.2,
-    "symptom": "No major symptoms, normal day",
+    "tookMedication": true,
+    "sleepHours": 7.2,
+    "vital_bpm": 78,
     "mood": 4,
-    "took_medication": true,
-    "vital_bpm": 73
-  },
-  {
-    "date": "12-02-2025",
-    "hours_of_sleep": 5.6,
-    "symptom": "Headache after long study session",
-    "mood": 2,
-    "took_medication": true,
-    "vital_bpm": 87
+    "symptom": "none",
+    "note": ""
   },
   {
     "date": "12-03-2025",
-    "hours_of_sleep": 8.0,
-    "symptom": "Feeling energetic",
-    "mood": 5,
-    "took_medication": true,
-    "vital_bpm": 68
-  },
-  {
-    "date": "12-04-2025",
-    "hours_of_sleep": 6.3,
-    "symptom": "Mild congestion, possible allergy",
+    "tookMedication": true,
+    "sleepHours": 6.8,
+    "vital_bpm": 81,
     "mood": 3,
-    "took_medication": true,
-    "vital_bpm": 80
+    "symptom": "pain",
+    "note": "Neck pain from bad posture"
   },
   {
     "date": "12-05-2025",
-    "hours_of_sleep": 4.5,
-    "symptom": "Very tired and a bit dizzy in the morning",
-    "mood": 1,
-    "took_medication": false,
-    "vital_bpm": 90
-  },
-  {
-    "date": "12-06-2025",
-    "hours_of_sleep": 7.8,
-    "symptom": "Recovering, feeling much better",
-    "mood": 4,
-    "took_medication": true,
-    "vital_bpm": 71
+    "tookMedication": false,
+    "sleepHours": 5.3,
+    "vital_bpm": 88,
+    "mood": 2,
+    "symptom": "fever",
+    "note": "Felt warm and tired"
   },
   {
     "date": "12-07-2025",
-    "hours_of_sleep": 6.1,
-    "symptom": "Slight muscle soreness from workout",
-    "mood": 3,
-    "took_medication": true,
-    "vital_bpm": 79
-  },
-  {
-    "date": "12-08-2025",
-    "hours_of_sleep": 7.0,
-    "symptom": "No notable symptoms",
+    "tookMedication": true,
+    "sleepHours": 8.0,
+    "vital_bpm": 72,
     "mood": 4,
-    "took_medication": true,
-    "vital_bpm": 75
+    "symptom": "none",
+    "note": ""
   },
   {
     "date": "12-09-2025",
-    "hours_of_sleep": 5.9,
-    "symptom": "Eyes feel dry from studying late",
-    "mood": 2,
-    "took_medication": false,
-    "vital_bpm": 83
-  },
-  {
-    "date": "12-10-2025",
-    "hours_of_sleep": 8.2,
-    "symptom": "Well-rested and calm",
-    "mood": 5,
-    "took_medication": true,
-    "vital_bpm": 69
-  },
-  {
-    "date": "12-30-2025",
-    "hours_of_sleep": 6.7,
-    "symptom": null,
-    "mood": 2,
-    "took_medication": true,
-    "vital_bpm": 80
+    "tookMedication": true,
+    "sleepHours": 7.4,
+    "vital_bpm": 75,
+    "mood": 4,
+    "symptom": "none",
+    "note": ""
   }
 ]

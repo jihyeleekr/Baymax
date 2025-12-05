@@ -294,7 +294,7 @@ function HealthLogCalendar() {
   };
 
   const handleDeleteEvent = (id) => {
-    // 현재는 UI 에서만 삭제 (원하면 나중에 /api/logs 삭제 엔드포인트 추가)
+    // DELETE from backend
     setEvents((prev) => prev.filter((ev) => ev.id !== id));
   };
 
@@ -484,7 +484,7 @@ function HealthLogCalendar() {
                     type="number"
                     min="0"
                     max="24"
-                    step="0.1"
+                    step="0.5"
                     name="sleepHours"
                     value={form.sleepHours}
                     onChange={handleInputChange}
@@ -524,6 +524,7 @@ function HealthLogCalendar() {
                     <option value="headache">headache</option>
                     <option value="nausea">nausea</option>
                     <option value="pain">pain</option>
+                    <option value="other">other</option>
                   </select>
                 </div>
 
@@ -535,6 +536,7 @@ function HealthLogCalendar() {
                     placeholder="Anything important to remember"
                     value={form.note}
                     onChange={handleInputChange}
+                    required={form.symptom === "other"}
                   />
                 </div>
               </div>
