@@ -21,8 +21,6 @@
   text-align: center;
 }
 
-/* 밑에 작게 포인트 라인 추가하고 싶으면 주석 해제해서 사용해도 됨 */
-
 .team-intro::after {
   content: "";
   display: block;

@@ -130,8 +130,7 @@ def create_app():
     def health():
         return jsonify({"status": "healthy", "database": "connected"})
 
-    # ----------------- Chat (Gemini) with ANONYMIZATION -----------------
-        # ----------------- Chat (Gemini) with ANONYMIZATION AND PRESCRIPTION CONTEXT -----------------
+    # ----------------- Chat (Gemini) with ANONYMIZATION AND PRESCRIPTION CONTEXT -----------------
     @app.route("/api/chat", methods=["POST"])
     def chat():
         """Chat endpoint with PHI anonymization, filtering, and prescription context"""
@@ -637,7 +636,7 @@ Provide a helpful, educational response (2-3 sentences max):"""
             "date": "2025-12-02",
             "tookMedication": true,
             "sleepHours": 7,
-            "heartRate": 80,
+            "vital_bpm": 80,
             "systolic": 120,
             "diastolic": 80,
             "mood": 4,
@@ -668,9 +667,7 @@ Provide a helpful, educational response (2-3 sentences max):"""
                 "date": date_iso,
                 "tookMedication": doc.get("took_medication", False),
                 "sleepHours": doc.get("hours_of_sleep"),
-                "heartRate": doc.get("heart_rate"),
-                "systolic": doc.get("systolic"),
-                "diastolic": doc.get("diastolic"),
+                "vital_pbm": doc.get("vital_bpm"),
                 "mood": doc.get("mood"),
                 "symptom": doc.get("symptom"),
                 "note": doc.get("note", ""),
@@ -691,9 +688,7 @@ Provide a helpful, educational response (2-3 sentences max):"""
             "date": "2025-12-02",
             "tookMedication": true,
             "sleepHours": 7,
-            "heartRate": 80,
-            "systolic": 120,
-            "diastolic": 80,
+            "vital_bpm": 80,
             "mood": 4,
             "symptom": "fever",
             "note": "..."
@@ -717,9 +712,7 @@ Provide a helpful, educational response (2-3 sentences max):"""
                 "date": date_str,
                 "took_medication": bool(data.get("tookMedication", False)),
                 "hours_of_sleep": data.get("sleepHours"),
-                "heart_rate": data.get("heartRate"),
-                "systolic": data.get("systolic"),
-                "diastolic": data.get("diastolic"),
+                "vital_bpm": data.get("vital_bpm"),
                 "mood": data.get("mood"),
                 "symptom": data.get("symptom"),
                 "note": data.get("note", ""),

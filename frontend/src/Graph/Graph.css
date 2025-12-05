@@ -60,7 +60,7 @@
 
 /* native date input */
 .date-input-wrapper input[type="date"] {
-  width: 130px;
+  width: 170px;
   padding: 7px 40px 7px 12px;
   border-radius: 999px;
   border: 1px solid #2c3139;

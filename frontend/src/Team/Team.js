@@ -16,7 +16,7 @@ function Team() {
         <div className="team-card">
           <div className="team-avatar">A</div>
           <h3 className="team-name">Abdullah Alwazan</h3>
-          <p className="team-role">File Upload & PDF Processing Engineer</p>
+          <p className="team-role"></p>
         </div>
 
         {/* Hari */}
@@ -30,7 +30,7 @@ function Team() {
         <div className="team-card">
           <div className="team-avatar">C</div>
           <h3 className="team-name">Can Gokmen</h3>
-          <p className="team-role">Report Generation & Export Features Developer</p>
+          <p className="team-role">File Upload / Report Export Features Developer</p>
         </div>
 
         {/* Jihye */}

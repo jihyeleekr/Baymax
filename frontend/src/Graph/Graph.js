@@ -248,7 +248,7 @@ function Graph() {
         const formatted = items.map((item) => {
           // item.date is "MM-DD-YYYY" from MongoDB
           const [mm, dd, yyyy] = item.date.split("-");
-          const fullDate = new Date(`${yyyy}-${mm}-${dd}`);
+          const fullDate = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
           fullDate.setHours(0, 0, 0, 0);
 
           return {

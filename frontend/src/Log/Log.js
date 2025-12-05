@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./HealthLogCalendar.css";
 
 const dayOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -17,17 +17,22 @@ const monthsOfYear = [
   "December",
 ];
 
+// 🔧 필요하면 여기 바꿔서 백엔드 주소 지정
+const API_BASE = process.env.REACT_APP_API_BASE_URL || "";
+
 const defaultForm = {
   tookMedication: false,
   sleepHours: "",
-  heartRate: "",
+  vital_bpm: "",
   mood: 3,
   symptom: "none",
   note: "",
 };
 
 function HealthLogCalendar() {
-  const today = new Date();
+  // normalize "today" at midnight
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
@@ -39,6 +44,67 @@ function HealthLogCalendar() {
 
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
   const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+
+  const isSameDate = (date1, date2) =>
+    date1.getFullYear() === date2.getFullYear() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getDate() === date2.getDate();
+
+  const isFutureDate = (date) => date.getTime() > today.getTime();
+
+  /* ============================
+     1) Load existing logs from backend
+     ============================ */
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/health-logs`);
+        if (!res.ok) {
+          console.error("❌ Failed to fetch health logs:", res.status);
+          return;
+        }
+        const data = await res.json();
+
+        // de-dupe by date (idKey = YYYY-MM-DD)
+        const byId = {};
+
+        data.forEach((log) => {
+          const [mm, dd, yyyy] = log.date.split("-");
+          const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+          const idKey = d.toISOString().slice(0, 10);
+
+          byId[idKey] = {
+            id: idKey,
+            date: d.toISOString(),
+            tookMedication: !!log.took_medication,
+            sleepHours:
+              log.hours_of_sleep === null || log.hours_of_sleep === undefined
+                ? ""
+                : log.hours_of_sleep,
+            vital_bpm: log.vital_bpm !== undefined && log.vital_bpm !== null
+              ? log.vital_bpm : "",
+            mood: log.mood ?? 3,
+            symptom: log.symptom ?? "none",
+            note: log.note ?? "",
+          };
+        });
+
+        const mapped = Object.values(byId).sort(
+          (a, b) => new Date(a.date) - new Date(b.date)
+        );
+
+        setEvents(mapped);
+      } catch (err) {
+        console.error("❌ Error loading health logs:", err);
+      }
+    };
+
+    fetchLogs();
+  }, []);
+
+  /* ============================
+     2) Month navigation
+     ============================ */
 
   const prevMonth = () => {
     setCurrentMonth((prev) => {
@@ -60,29 +126,65 @@ function HealthLogCalendar() {
     });
   };
 
-  const isSameDate = (date1, date2) =>
-    date1.getFullYear() === date2.getFullYear() &&
-    date1.getMonth() === date2.getMonth() &&
-    date1.getDate() === date2.getDate();
+  /* ============================
+     3) Day click / popup
+     ============================ */
 
   const handleDayClick = (day) => {
     const clicked = new Date(currentYear, currentMonth, day);
+
+    // 🚫 block future days
+    if (isFutureDate(clicked)) return;
+
     setSelectedDate(clicked);
     setShowEventPopup(true);
 
-    const existing = events.find((ev) => isSameDate(new Date(ev.date), clicked));
+    const existing = events.find((ev) =>
+      isSameDate(new Date(ev.date), clicked)
+    );
+
     if (existing) {
       setForm({
         tookMedication: !!existing.tookMedication,
         sleepHours: existing.sleepHours ?? "",
-        heartRate: existing.heartRate ?? "",
+        vital_bpm: existing.vital_bpm ?? "",
         mood: existing.mood ?? 3,
         symptom: existing.symptom ?? "none",
         note: existing.note ?? "",
       });
-    } else {
-      setForm(defaultForm);
+      return;
     }
+
+    // fetch from backend just in case
+    const loadFromBackend = async () => {
+      try {
+        const iso = clicked.toISOString().slice(0, 10);
+        const res = await fetch(`${API_BASE}/api/logs/one?date=${iso}`);
+        if (!res.ok) {
+          setForm(defaultForm);
+          return;
+        }
+        const data = await res.json();
+        if (!data || !data.date) {
+          setForm(defaultForm);
+          return;
+        }
+
+        setForm({
+          tookMedication: !!data.tookMedication,
+          sleepHours: data.sleepHours ?? "",
+          vital_bpm: data.vital_bpm ?? "",
+          mood: data.mood ?? 3,
+          symptom: data.symptom ?? "none",
+          note: data.note ?? "",
+        });
+      } catch (err) {
+        console.error("❌ Error fetching single log:", err);
+        setForm(defaultForm);
+      }
+    };
+
+    loadFromBackend();
   };
 
   const handleInputChange = (e) => {
@@ -97,51 +199,94 @@ function HealthLogCalendar() {
     setForm((prev) => ({ ...prev, mood: m }));
   };
 
-  const handleSubmit = (e) => {
+  /* ============================
+     4) Submit (upsert) log
+     ============================ */
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedDate) return;
 
     setSaving(true);
-
-    const idKey = selectedDate.toISOString().slice(0, 10); // YYYY-MM-DD per-day
+    const dateIso = selectedDate.toISOString().slice(0, 10); // YYYY-MM-DD
+    const idKey = dateIso;
 
     const payload = {
-      id: idKey,
-      date: selectedDate.toISOString(),
+      date: dateIso,
       tookMedication: !!form.tookMedication,
       sleepHours:
         form.sleepHours === "" ? null : Number.parseFloat(form.sleepHours),
-      heartRate:
-        form.heartRate === "" ? null : Number.parseInt(form.heartRate, 10),
+      vital_bpm: form.vital_bpm === "" ? null : Number(form.vital_bpm),
       mood: Number(form.mood),
       symptom: form.symptom,
       note: form.note.trim(),
     };
 
-    setEvents((prev) => {
-      const idx = prev.findIndex((ev) => ev.id === idKey);
-      if (idx === -1) {
-        return [...prev, payload].sort(
-          (a, b) => new Date(a.date) - new Date(b.date)
-        );
-      }
-      const clone = [...prev];
-      clone[idx] = payload;
-      return clone.sort((a, b) => new Date(a.date) - new Date(b.date));
-    });
+    try {
+      const res = await fetch(`${API_BASE}/api/logs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    setSaving(false);
-    setShowEventPopup(false);
+      let body = null;
+      try {
+        body = await res.json();
+      } catch (_) {
+        // ignore
+      }
+      console.log("💾 Save log response:", res.status, body);
+
+      if (!res.ok) {
+        console.error("❌ Failed to save log");
+      } else {
+        const updatedEvent = {
+          id: idKey,
+          date: selectedDate.toISOString(),
+          tookMedication: payload.tookMedication,
+          sleepHours: payload.sleepHours ?? "",
+          vital_bpm: payload.vital_bpm ?? "",
+          mood: payload.mood,
+          symptom: payload.symptom,
+          note: payload.note,
+        };
+
+        setEvents((prev) => {
+          const idx = prev.findIndex((ev) => ev.id === idKey);
+          if (idx === -1) {
+            return [...prev, updatedEvent].sort(
+              (a, b) => new Date(a.date) - new Date(b.date)
+            );
+          }
+          const clone = [...prev];
+          clone[idx] = updatedEvent;
+          return clone.sort(
+            (a, b) => new Date(a.date) - new Date(b.date)
+          );
+        });
+      }
+    } catch (err) {
+      console.error("❌ Error saving log:", err);
+    } finally {
+      setSaving(false);
+      setShowEventPopup(false);
+    }
   };
+
+  /* ============================
+     5) Edit / delete
+     ============================ */
 
   const handleEditEvent = (event) => {
     const d = new Date(event.date);
+    if (isFutureDate(d)) return;
+
     setSelectedDate(d);
     setShowEventPopup(true);
     setForm({
       tookMedication: !!event.tookMedication,
       sleepHours: event.sleepHours ?? "",
-      heartRate: event.heartRate ?? "",
+      vital_bpm: event.vital_bpm ?? "",
       mood: event.mood ?? 3,
       symptom: event.symptom ?? "none",
       note: event.note ?? "",
@@ -149,10 +294,14 @@ function HealthLogCalendar() {
   };
 
   const handleDeleteEvent = (id) => {
+    // 현재는 UI 에서만 삭제 (원하면 나중에 /api/logs 삭제 엔드포인트 추가)
     setEvents((prev) => prev.filter((ev) => ev.id !== id));
   };
 
-  // mood emoji group
+  /* ============================
+     6) UI helpers
+     ============================ */
+
   const renderMoodEmojis = () => {
     const opts = [
       { v: 1, e: "😞" },
@@ -178,6 +327,17 @@ function HealthLogCalendar() {
       </div>
     );
   };
+
+  // ============================
+  // 7) Events filtered by current month/year
+  // ============================
+  const visibleEvents = events.filter((event) => {
+    const d = new Date(event.date);
+    return (
+      d.getFullYear() === currentYear &&
+      d.getMonth() === currentMonth
+    );
+  });
 
   return (
     <div className="container">
@@ -209,28 +369,13 @@ function HealthLogCalendar() {
             {Array.from({ length: daysInMonth }).map((_, idx) => {
               const dayNum = idx + 1;
               const cellDate = new Date(currentYear, currentMonth, dayNum);
-
               const isToday = isSameDate(cellDate, today);
-              // future dates = strictly after today (today is allowed)
-              const isFuture = cellDate > today && !isToday;
-
-              const classes = [
-                isToday ? "current-day" : "",
-                isFuture ? "future-day" : "",
-              ]
-                .filter(Boolean)
-                .join(" ");
 
               return (
                 <span
                   key={dayNum}
-                  className={classes}
-                  // block future clicks, but keep same look
-                  onClick={() => {
-                    if (!isFuture) {
-                      handleDayClick(dayNum);
-                    }
-                  }}
+                  className={isToday ? "current-day" : ""}
+                  onClick={() => handleDayClick(dayNum)}
                 >
                   {dayNum}
                 </span>
@@ -241,20 +386,22 @@ function HealthLogCalendar() {
 
         {/* Logged days list */}
         <div className="events">
-          {events.map((event) => {
+          {visibleEvents.map((event) => {
             const dateObj = new Date(event.date);
 
             const pieces = [];
             pieces.push(
               event.tookMedication ? "💊 Took meds" : "🚫 Skipped meds"
             );
-            if (event.heartRate) pieces.push(`❤️ ${event.heartRate} bpm`);
+            if (event.vital_bpm) pieces.push(`❤️ ${event.vital_bpm} bpm`);
             if (event.symptom && event.symptom !== "none")
               pieces.push(`🩺 ${event.symptom}`);
             const mainLine = pieces.join(" · ");
 
             const sleepLabel =
-              typeof event.sleepHours === "number"
+              typeof event.sleepHours === "number" ||
+                (typeof event.sleepHours === "string" &&
+                  event.sleepHours !== "")
                 ? `${event.sleepHours}h sleep`
                 : "-";
 
@@ -293,7 +440,7 @@ function HealthLogCalendar() {
           })}
         </div>
 
-        {/* Popup for daily log */}
+        {/* Popup */}
         {showEventPopup && selectedDate && (
           <div className="event-popup">
             <button
@@ -344,13 +491,13 @@ function HealthLogCalendar() {
                   />
                 </div>
                 <div className="popup-field">
-                  <span className="popup-label">Heart rate (bpm)</span>
+                  <span className="popup-label"> Vital (bpm)</span>
                   <input
                     type="number"
                     min="30"
                     max="220"
-                    name="heartRate"
-                    value={form.heartRate}
+                    name="vital_bpm"
+                    value={form.vital_bpm}
                     onChange={handleInputChange}
                   />
                 </div>
