@@ -32,11 +32,17 @@ function Home() {
   }, []);
 
   const signInWithGoogle = async () => {
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: window.location.origin },
-    });
-  };
+  await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: window.location.origin,
+      queryParams: {
+        prompt: "consent select_account",
+      },
+    },
+  });
+};
+
 
   return (
     <div className="home-hero">
