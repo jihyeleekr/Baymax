@@ -17,7 +17,6 @@ function Export() {
     { id: 'sleep', name: 'Sleep Data', description: 'Hours of sleep per night' },
     { id: 'symptoms', name: 'Symptoms', description: 'Daily symptom tracking' },
     { id: 'mood', name: 'Mood', description: 'Daily mood ratings (1-5 scale)' },
-    { id: 'medications', name: 'Medications', description: 'Medication adherence tracking' },
     { id: 'vital_signs', name: 'Vital Signs', description: 'Heart rate and other vitals' }
   ];
 
