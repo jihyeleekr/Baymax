@@ -332,37 +332,42 @@ Provide a helpful, educational response (2-3 sentences max):"""
             end_date = data.get("end_date")
             export_format = data.get("format", "csv")
 
-            with open("data/health_logs_seed.json", "r") as f:
-                health_logs = json.load(f)
-
+            # Fetch from MongoDB instead of seed file
+            logs = list(db.health_logs.find())
+            
             if start_date:
                 start = datetime.strptime(start_date, "%Y-%m-%d")
                 now = datetime.now()
                 if start > now:
                     return jsonify({"error": "Start date cannot be in the future."}), 400
 
-            # Apply date filtering (seed file dates are MM-DD-YYYY)
+            # Apply date filtering (MongoDB dates are MM-DD-YYYY)
             if start_date or end_date:
                 filtered_logs = []
-                for log in health_logs:
-                    log_date = datetime.strptime(log["date"], "%m-%d-%Y")
+                for log in logs:
+                    try:
+                        # Parse MM-DD-YYYY format from MongoDB
+                        log_date = datetime.strptime(log["date"], "%m-%d-%Y")
 
-                    if start_date:
-                        start = datetime.strptime(start_date, "%Y-%m-%d")
-                        if log_date < start:
-                            continue
+                        if start_date:
+                            start = datetime.strptime(start_date, "%Y-%m-%d")
+                            if log_date < start:
+                                continue
 
-                    if end_date:
-                        end = datetime.strptime(end_date, "%Y-%m-%d")
-                        if log_date > end:
-                            continue
+                        if end_date:
+                            end = datetime.strptime(end_date, "%Y-%m-%d")
+                            if log_date > end:
+                                continue
 
-                    filtered_logs.append(log)
-                health_logs = filtered_logs
+                        filtered_logs.append(log)
+                    except (ValueError, KeyError):
+                        continue
+                logs = filtered_logs
 
+            # Filter by categories
             if categories:
                 filtered_logs = []
-                for log in health_logs:
+                for log in logs:
                     filtered_log = {"date": log["date"]}
 
                     if "sleep" in categories and log.get("hours_of_sleep") is not None:
@@ -379,9 +384,24 @@ Provide a helpful, educational response (2-3 sentences max):"""
 
                     if "vital_signs" in categories and log.get("vital_bpm") is not None:
                         filtered_log["vital_bpm"] = log["vital_bpm"]
+                    
+                    # Include note if it exists
+                    if log.get("note"):
+                        filtered_log["note"] = log["note"]
 
                     filtered_logs.append(filtered_log)
-                health_logs = filtered_logs
+                logs = filtered_logs
+
+            # Convert ObjectId to string for JSON serialization
+            health_logs = []
+            for log in logs:
+                log_copy = log.copy()
+                if "_id" in log_copy:
+                    log_copy["_id"] = str(log_copy["_id"])
+                # Remove MongoDB-specific fields
+                log_copy.pop("created_at", None)
+                log_copy.pop("updated_at", None)
+                health_logs.append(log_copy)
 
 
 
@@ -431,10 +451,10 @@ Provide a helpful, educational response (2-3 sentences max):"""
                     )
                 )
                 story.append(
-                    Paragraph(f"<b>Date Range:</b> {start_date} to {end_date}", info_style)
+                    Paragraph(f"<b>Date Range:</b> {start_date or 'All'} to {end_date or 'All'}", info_style)
                 )
                 story.append(
-                    Paragraph(f"<b>Categories:</b> {', '.join(categories)}", info_style)
+                    Paragraph(f"<b>Categories:</b> {', '.join(categories) if categories else 'All'}", info_style)
                 )
                 story.append(
                     Paragraph(f"<b>Total Records:</b> {len(health_logs)}", info_style)
@@ -501,10 +521,10 @@ Provide a helpful, educational response (2-3 sentences max):"""
                         "export_info": {
                             "generated_at": datetime.now().isoformat(),
                             "date_range": {
-                                "start": start_date,
-                                "end": end_date,
+                                "start": start_date or "All",
+                                "end": end_date or "All",
                             },
-                            "categories": categories,
+                            "categories": categories if categories else "All",
                             "total_records": len(health_logs),
                         },
                         "data": health_logs,
@@ -527,6 +547,7 @@ Provide a helpful, educational response (2-3 sentences max):"""
                 return jsonify({"error": "Unsupported export format"}), 400
 
         except Exception as e:
+            print(f"❌ Export error: {str(e)}")
             return jsonify({"error": str(e)}), 500
 
 
@@ -741,10 +762,8 @@ Provide a helpful, educational response (2-3 sentences max):"""
             start_date = data.get("start_date")
             end_date = data.get("end_date")
 
-            # -----------READ SEED DATA ----------
-
-            with open("data/health_logs_seed.json", "r") as f:
-                health_logs = json.load(f)
+            # Fetch from MongoDB instead of seed file
+            logs = list(db.health_logs.find())
 
             # Validate custom date range
             if start_date and end_date:
@@ -758,25 +777,28 @@ Provide a helpful, educational response (2-3 sentences max):"""
 
             if start_date or end_date:
                 filtered_logs = []
-                for log in health_logs:
-                    log_date = datetime.strptime(log["date"], "%m-%d-%Y")
+                for log in logs:
+                    try:
+                        log_date = datetime.strptime(log["date"], "%m-%d-%Y")
 
-                    if start_date:
-                        start = datetime.strptime(start_date, "%Y-%m-%d")
-                        if log_date < start:
-                            continue
+                        if start_date:
+                            start = datetime.strptime(start_date, "%Y-%m-%d")
+                            if log_date < start:
+                                continue
 
-                    if end_date:
-                        end = datetime.strptime(end_date, "%Y-%m-%d")
-                        if log_date > end:
-                            continue
+                        if end_date:
+                            end = datetime.strptime(end_date, "%Y-%m-%d")
+                            if log_date > end:
+                                continue
 
-                    filtered_logs.append(log)
-                health_logs = filtered_logs
+                        filtered_logs.append(log)
+                    except (ValueError, KeyError):
+                        continue
+                logs = filtered_logs
 
             if categories:
                 filtered_logs = []
-                for log in health_logs:
+                for log in logs:
                     filtered_log = {"date": log["date"]}
 
                     if "sleep" in categories and log.get("hours_of_sleep") is not None:
@@ -793,9 +815,22 @@ Provide a helpful, educational response (2-3 sentences max):"""
 
                     if "vital_signs" in categories and log.get("vital_bpm") is not None:
                         filtered_log["vital_bpm"] = log["vital_bpm"]
+                    
+                    if log.get("note"):
+                        filtered_log["note"] = log["note"]
 
                     filtered_logs.append(filtered_log)
-                health_logs = filtered_logs
+                logs = filtered_logs
+
+            # Convert ObjectId to string and remove MongoDB-specific fields
+            health_logs = []
+            for log in logs:
+                log_copy = log.copy()
+                if "_id" in log_copy:
+                    log_copy["_id"] = str(log_copy["_id"])
+                log_copy.pop("created_at", None)
+                log_copy.pop("updated_at", None)
+                health_logs.append(log_copy)
 
             # If no data after filtering, return error
             if not health_logs:
@@ -805,16 +840,17 @@ Provide a helpful, educational response (2-3 sentences max):"""
                 {
                     "preview": health_logs[:10],
                     "total_records": len(health_logs),
-                    "categories_included": categories,
+                    "categories_included": categories if categories else ["all"],
                     "date_range": {
-                        "start": start_date,
-                        "end": end_date,
+                        "start": start_date or "All",
+                        "end": end_date or "All",
                     },
                     "timestamp": datetime.now().isoformat(),
                 }
             )
 
         except Exception as e:
+            print(f"❌ Preview error: {str(e)}")
             return jsonify({"error": str(e)}), 500
 
     return app
