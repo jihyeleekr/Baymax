@@ -71,6 +71,7 @@ function Export() {
 
     setIsLoading(true);
     setExportStatus('');
+    setPreviewData(null); // Clear previous preview
 
     try {
       const response = await fetch('http://localhost:5001/api/export/preview', {
@@ -80,21 +81,23 @@ function Export() {
         },
         body: JSON.stringify({
           categories: selectedCategories,
-          start_date: dateRange.startDate,
-          end_date: dateRange.endDate
+          start_date: dateRange.startDate || null,
+          end_date: dateRange.endDate || null
         })
       });
 
       if (response.ok) {
         const data = await response.json();
         setPreviewData(data);
-        setExportStatus(`Preview loaded: ${data.total_records} records found.`);
+        setExportStatus(`✅ Preview loaded: ${data.total_records} records found.`);
       } else {
         const error = await response.json();
-        setExportStatus(`Error: ${error.error}`);
+        setExportStatus(`Error: ${error.error || 'Failed to load preview'}`);
+        setPreviewData(null);
       }
     } catch (error) {
-      setExportStatus(`Error: ${error.message}`);
+      setExportStatus(`Error: ${error.message || 'Failed to connect to server'}`);
+      setPreviewData(null);
     } finally {
       setIsLoading(false);
     }
@@ -108,7 +111,7 @@ function Export() {
     }
 
     setIsLoading(true);
-    setExportStatus('');
+    setExportStatus('Preparing export...');
 
     try {
       const response = await fetch('http://localhost:5001/api/export', {
@@ -118,8 +121,8 @@ function Export() {
         },
         body: JSON.stringify({
           categories: selectedCategories,
-          start_date: dateRange.startDate,
-          end_date: dateRange.endDate,
+          start_date: dateRange.startDate || null,
+          end_date: dateRange.endDate || null,
           format: exportFormat
         })
       });
@@ -328,7 +331,11 @@ function Export() {
             <h2>Data Preview</h2>
             <div className="preview-info">
               <p><strong>Total Records:</strong> {previewData.total_records}</p>
-              <p><strong>Categories:</strong> {previewData.categories_included.join(', ')}</p>
+              <p><strong>Categories:</strong> {
+                Array.isArray(previewData.categories_included) 
+                  ? previewData.categories_included.join(', ')
+                  : previewData.categories_included
+              }</p>
               <p><strong>Date Range:</strong> {previewData.date_range.start} to {previewData.date_range.end}</p>
             </div>
             
@@ -337,17 +344,27 @@ function Export() {
                 <table className="preview-table">
                   <thead>
                     <tr>
-                      {Object.keys(previewData.preview[0]).map(key => (
-                        <th key={key}>{key.replace('_', ' ').toUpperCase()}</th>
-                      ))}
+                      {Object.keys(previewData.preview[0])
+                        .filter(key => key !== '_id' && key !== 'note') // Hide MongoDB ID and notes
+                        .map(key => (
+                          <th key={key}>{key.replace(/_/g, ' ').toUpperCase()}</th>
+                        ))}
                     </tr>
                   </thead>
                   <tbody>
                     {previewData.preview.map((row, index) => (
                       <tr key={index}>
-                        {Object.values(row).map((value, i) => (
-                          <td key={i}>{value !== null ? value.toString() : 'N/A'}</td>
-                        ))}
+                        {Object.entries(row)
+                          .filter(([key]) => key !== '_id' && key !== 'note') // Hide MongoDB ID and notes
+                          .map(([key, value], i) => (
+                            <td key={i}>
+                              {value === null || value === undefined 
+                                ? 'N/A' 
+                                : typeof value === 'boolean'
+                                  ? (value ? 'Yes' : 'No')
+                                  : value.toString()}
+                            </td>
+                          ))}
                       </tr>
                     ))}
                   </tbody>
