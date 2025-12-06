@@ -76,11 +76,11 @@ function HealthLogCalendar() {
           byId[idKey] = {
             id: idKey,
             date: d.toISOString(),
-            tookMedication: !!log.took_medication,
+            tookMedication: !!log.tookMedication,
             sleepHours:
-              log.hours_of_sleep === null || log.hours_of_sleep === undefined
+              log.sleepHours === null || log.sleepHours === undefined
                 ? ""
-                : log.hours_of_sleep,
+                : log.sleepHours,
             vital_bpm: log.vital_bpm !== undefined && log.vital_bpm !== null
               ? log.vital_bpm : "",
             mood: log.mood ?? 3,

@@ -21,7 +21,6 @@ const CATEGORY_OPTIONS = [
   { id: "vital", label: "Heart rate" },
   { id: "mood", label: "Mood" },
   { id: "medication", label: "Medication" },
-  { id: "condition", label: "Condition" },
 ];
 
 // X-axis resolution options
@@ -52,7 +51,7 @@ function aggregateData(items, resolution) {
     }));
   }
 
-  const metricKeys = ["sleep", "vital", "mood", "medicNumeric", "condition"];
+  const metricKeys = ["sleep", "vital", "mood", "medicNumeric"];
   const groups = new Map();
 
   sorted.forEach((item) => {
@@ -212,6 +211,14 @@ function Graph() {
     [rawData, resolution]
   );
 
+  // Tooltip 
+  const tooltipFormatter = (value) => {
+    if (value == null) return value;
+    if (resolution === "daily") return value;
+    // weekly / monthly / yearly 일 때만 반올림
+    return Number(value.toFixed(2));
+  };
+
   // Fetch raw daily data from backend whenever the date range changes
   useEffect(() => {
     const fetchData = async () => {
@@ -260,20 +267,18 @@ function Graph() {
             }),
             // Normalized numeric fields for charts
             sleep:
-              typeof item.hours_of_sleep === "number"
-                ? item.hours_of_sleep
+              typeof item.sleepHours === "number"
+                ? item.sleepHours
                 : null,
             vital:
               typeof item.vital_bpm === "number" ? item.vital_bpm : null,
             mood: typeof item.mood === "number" ? item.mood : null,
             medicNumeric:
-              item.took_medication === true
+              item.tookMedication === true
                 ? 1
-                : item.took_medication === false
+                : item.tookMedication === false
                   ? 0
                   : null,
-            // For now, reuse mood as "condition" (can be changed later)
-            condition: typeof item.mood === "number" ? item.mood : null,
           };
         });
 
@@ -299,7 +304,7 @@ function Graph() {
         <div>
           <h1 className="graph-title">Health Trends</h1>
           <p className="graph-subtitle">
-            See how your sleep, medication, mood, heart rate, and condition
+            See how your sleep, medication, mood, and heart rate
             change over the selected date range.
           </p>
         </div>
@@ -445,7 +450,7 @@ function Graph() {
                       contentStyle={{
                         backgroundColor: "#1f242b",
                         border: "none",
-                      }}
+                      }} formatter={tooltipFormatter}
                     />
                     <Line
                       type="monotone"
@@ -474,7 +479,7 @@ function Graph() {
                       contentStyle={{
                         backgroundColor: "#1f242b",
                         border: "none",
-                      }}
+                      }} formatter={tooltipFormatter}
                     />
                     <Line
                       type="monotone"
@@ -504,7 +509,7 @@ function Graph() {
                       contentStyle={{
                         backgroundColor: "#1f242b",
                         border: "none",
-                      }}
+                      }} formatter={tooltipFormatter}
                     />
                     <Bar
                       dataKey="mood"
@@ -542,39 +547,6 @@ function Graph() {
                       radius={[6, 6, 0, 0]}
                     />
                   </BarChart>
-                </ResponsiveContainer>
-              </GraphCard>
-            )}
-
-            {/* Condition */}
-            {selectedCategories.includes("condition") && (
-              <GraphCard
-                title="Condition"
-                description="Overall condition score (1–5)"
-              >
-                <ResponsiveContainer width="100%" height={220}>
-                  <LineChart data={aggregatedData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#33363f" />
-                    <XAxis dataKey="dateLabel" stroke="#9ea5ad" />
-                    <YAxis
-                      domain={[0, 5]}
-                      ticks={[1, 2, 3, 4, 5]}
-                      stroke="#9ea5ad"
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#1f242b",
-                        border: "none",
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="condition"
-                      stroke="#a5b4fc"
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                  </LineChart>
                 </ResponsiveContainer>
               </GraphCard>
             )}
