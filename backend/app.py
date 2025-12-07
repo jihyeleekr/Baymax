@@ -407,13 +407,14 @@ Provide a helpful, educational response (2-3 sentences max):"""
 
             # ---- CSV export ----
             if export_format == "csv":
+                if not health_logs:
+                    return jsonify({"error": "No data found between the selected date range."}), 404
+                
                 output = io.StringIO()
-
-                if health_logs:
-                    fieldnames = list(health_logs[0].keys())
-                    writer = csv.DictWriter(output, fieldnames=fieldnames)
-                    writer.writeheader()
-                    writer.writerows(health_logs)
+                fieldnames = list(health_logs[0].keys())
+                writer = csv.DictWriter(output, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(health_logs)
 
                 output.seek(0)
                 file_output = io.BytesIO()

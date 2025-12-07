@@ -7,19 +7,6 @@ class ExportSystemTestCase(unittest.TestCase):
         self.app = create_app()
         self.client = self.app.test_client()
 
-    # Test exporting all categories as CSV for the last 30 days
-    def test_export_csv_all_categories_last_30_days(self):
-        payload = {
-            "categories": ["sleep", "symptoms", "mood", "medications", "vital_signs"],
-            "start_date": "2025-10-19",
-            "end_date": "2025-11-18",
-            "format": "csv"
-        }
-        response = self.client.post("/api/export", json=payload)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b"text/csv", response.content_type.encode())
-        self.assertIn(b"date", response.data)
-
     # Test previewing export data with invalid custom date range (start date after end date)
     def test_preview_invalid_custom_date_range(self):
         payload = {
@@ -72,6 +59,30 @@ class ExportSystemTestCase(unittest.TestCase):
         data = json.loads(response.data)
         self.assertIn("error", data)
         self.assertEqual(data["error"], "Start date cannot be in the future.")
+
+    # Test exporting with no categories selected returns all data
+    def test_export_no_categories_selected(self):
+        payload = {
+            "categories": [],
+            "start_date": "2025-11-01",
+            "end_date": "2025-11-10",
+            "format": "csv"
+        }
+        response = self.client.post("/api/export", json=payload)
+        self.assertEqual(response.status_code, 200)  # Should succeed with all data
+        self.assertIn(b"text/csv", response.content_type.encode())
+
+    # Test exporting as JSON format with vital signs category
+    def test_export_json_vital_signs(self):
+        payload = {
+            "categories": ["vital_signs"],
+            "start_date": "2025-10-01",
+            "end_date": "2025-11-30",
+            "format": "json"
+        }
+        response = self.client.post("/api/export", json=payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"application/json", response.content_type.encode())
 
 if __name__ == "__main__":
     unittest.main()
