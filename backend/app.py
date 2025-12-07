@@ -370,8 +370,8 @@ Provide a helpful, educational response (2-3 sentences max):"""
                 for log in logs:
                     filtered_log = {"date": log["date"]}
 
-                    if "sleep" in categories and log.get("hours_of_sleep") is not None:
-                        filtered_log["hours_of_sleep"] = log["hours_of_sleep"]
+                    if "sleep" in categories and log.get("sleepHours") is not None:
+                        filtered_log["sleepHours"] = log["sleepHours"]
 
                     if "symptoms" in categories and log.get("symptom"):
                         filtered_log["symptom"] = log["symptom"]
@@ -379,8 +379,8 @@ Provide a helpful, educational response (2-3 sentences max):"""
                     if "mood" in categories and log.get("mood") is not None:
                         filtered_log["mood"] = log["mood"]
 
-                    if "medications" in categories and log.get("took_medication") is not None:
-                        filtered_log["took_medication"] = log["took_medication"]
+                    if "medications" in categories and log.get("tookMedication") is not None:
+                        filtered_log["tookMedication"] = log["tookMedication"]
 
                     if "vital_signs" in categories and log.get("vital_bpm") is not None:
                         filtered_log["vital_bpm"] = log["vital_bpm"]
@@ -686,9 +686,9 @@ Provide a helpful, educational response (2-3 sentences max):"""
 
             resp = {
                 "date": date_iso,
-                "tookMedication": doc.get("took_medication", False),
-                "sleepHours": doc.get("hours_of_sleep"),
-                "vital_pbm": doc.get("vital_bpm"),
+                "tookMedication": doc.get("tookMedication", False),
+                "sleepHours": doc.get("sleepHours"),
+                "vital_bpm": doc.get("vital_bpm"),
                 "mood": doc.get("mood"),
                 "symptom": doc.get("symptom"),
                 "note": doc.get("note", ""),
@@ -731,8 +731,8 @@ Provide a helpful, educational response (2-3 sentences max):"""
 
             doc = {
                 "date": date_str,
-                "took_medication": bool(data.get("tookMedication", False)),
-                "hours_of_sleep": data.get("sleepHours"),
+                "tookMedication": bool(data.get("tookMedication", False)),
+                "sleepHours": data.get("sleepHours"),
                 "vital_bpm": data.get("vital_bpm"),
                 "mood": data.get("mood"),
                 "symptom": data.get("symptom"),
@@ -801,8 +801,8 @@ Provide a helpful, educational response (2-3 sentences max):"""
                 for log in logs:
                     filtered_log = {"date": log["date"]}
 
-                    if "sleep" in categories and log.get("hours_of_sleep") is not None:
-                        filtered_log["hours_of_sleep"] = log["hours_of_sleep"]
+                    if "sleep" in categories and log.get("sleepHours") is not None:
+                        filtered_log["sleepHours"] = log["sleepHours"]
 
                     if "symptoms" in categories and log.get("symptom"):
                         filtered_log["symptom"] = log["symptom"]
@@ -810,8 +810,8 @@ Provide a helpful, educational response (2-3 sentences max):"""
                     if "mood" in categories and log.get("mood") is not None:
                         filtered_log["mood"] = log["mood"]
 
-                    if "medications" in categories and log.get("took_medication") is not None:
-                        filtered_log["took_medication"] = log["took_medication"]
+                    if "medications" in categories and log.get("tookMedication") is not None:
+                        filtered_log["tookMedication"] = log["tookMedication"]
 
                     if "vital_signs" in categories and log.get("vital_bpm") is not None:
                         filtered_log["vital_bpm"] = log["vital_bpm"]
