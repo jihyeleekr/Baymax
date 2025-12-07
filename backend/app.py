@@ -245,21 +245,24 @@ Provide a helpful, educational response (2-3 sentences max):"""
     def get_health_logs():
         """
         Returns health logs from the `health_logs` collection.
-
-        Optional query parameters (matching the React Graph component):
-          - start: start date (YYYY-MM-DD)
-          - end:   end date   (YYYY-MM-DD)
-
-        Documents in MongoDB use "date" as a string in "MM-DD-YYYY" format.
-        This endpoint converts and filters correctly, then returns a plain list.
+        
+        Required query parameter:
+        - user_id: Supabase user ID
+        
+        Optional query parameters:
+        - start: start date (YYYY-MM-DD)
+        - end:   end date   (YYYY-MM-DD)
         """
         try:
-            # Query params from frontend (YYYY-MM-DD)
+
+        # ✅ Default to "anonymous" if not provided
+            user_id = request.args.get("user_id", "anonymous")
+            
             start_str = request.args.get("start")
             end_str = request.args.get("end")
 
-            # Fetch all logs from MongoDB
-            logs = list(db.health_logs.find())
+            # ✅ Filter by user_id (now required, defaults to "anonymous")
+            logs = list(db.health_logs.find({"user_id": user_id}))
 
             # Helper: parse "MM-DD-YYYY" into a Python date object
             def parse_mmddyyyy(s: str):
@@ -285,13 +288,11 @@ Provide a helpful, educational response (2-3 sentences max):"""
 
                 date_str = log.get("date")
                 if not date_str:
-                    # Skip documents without a date
                     continue
 
                 try:
                     log_date = parse_mmddyyyy(date_str)
                 except ValueError:
-                    # Skip invalid date formats
                     continue
 
                 # Apply optional date range filters
@@ -310,16 +311,12 @@ Provide a helpful, educational response (2-3 sentences max):"""
             if start_date and end_date and start_date > end_date:
                 return jsonify({"error": "Start date must not be after end date."}), 400
 
-            if not filtered_logs:
-                return jsonify({"error": "No health logs found between the selected date range."}), 404
-       
-
-
-            # Frontend expects a plain array here
+            # ✅ Return empty array instead of 404 (let frontend show "no data" message)
             return jsonify(filtered_logs), 200
 
         except Exception as e:
             return jsonify({"error": str(e)}), 500
+
 
     # ----------------- Export data (CSV, PDF, JSON) -----------------
     @app.route("/api/export", methods=["POST"])
@@ -327,13 +324,21 @@ Provide a helpful, educational response (2-3 sentences max):"""
         """Export health data in specified format (CSV, PDF, JSON)"""
         try:
             data = request.json
+
+            user_id = data.get("user_id")  # ✅ ADD
+
             categories = data.get("categories", [])
             start_date = data.get("start_date")
             end_date = data.get("end_date")
             export_format = data.get("format", "csv")
 
+            if not user_id:  # ✅ ADD
+                return jsonify({"error": "user_id is required"}), 400
+
+            logs = list(db.health_logs.find({"user_id": user_id}))
+
             # Fetch from MongoDB instead of seed file
-            logs = list(db.health_logs.find())
+            #logs = list(db.health_logs.find())
             
             if start_date:
                 start = datetime.strptime(start_date, "%Y-%m-%d")
@@ -652,26 +657,19 @@ Provide a helpful, educational response (2-3 sentences max):"""
     def get_single_log():
         """
         React:
-          GET /api/logs/one?date=2025-12-02  (YYYY-MM-DD)
-        Returns a single health log for the specified date.:
-          {
-            "date": "2025-12-02",
-            "tookMedication": true,
-            "sleepHours": 7,
-            "vital_bpm": 80,
-            "systolic": 120,
-            "diastolic": 80,
-            "mood": 4,
-            "symptom": "fever",
-            "note": "..."
-          }
+        GET /api/logs/one?date=2025-12-02&user_id=xxx
+        Returns a single health log for the specified date and user.
         """
         try:
             date_iso = request.args.get("date")
+            user_id = request.args.get("user_id", "anonymous")
+            
             if not date_iso:
                 return jsonify({"error": "date query param is required"}), 400
+            
+            if not user_id:  # ✅ ADD
+                return jsonify({"error": "user_id is required"}), 400
 
-            # YYYY-MM-DD -> MM-DD-YYYY 
             try:
                 dt = datetime.strptime(date_iso[:10], "%Y-%m-%d")
             except ValueError:
@@ -679,9 +677,11 @@ Provide a helpful, educational response (2-3 sentences max):"""
 
             date_str = dt.strftime("%m-%d-%Y")
 
-            doc = db.health_logs.find_one({"date": date_str})
+            # ✅ FILTER by both date AND user_id
+            doc = db.health_logs.find_one({"date": date_str, "user_id": user_id})
+            
             if not doc:
-                return jsonify({}), 200   
+                return jsonify({}), 200
 
             doc["_id"] = str(doc["_id"])
 
@@ -700,13 +700,14 @@ Provide a helpful, educational response (2-3 sentences max):"""
             print("❌ get_single_log error:", e)
             return jsonify({"error": str(e)}), 500
 
-
+#-----------------------------------------------------------------------------
     @app.route("/api/logs", methods=["POST"])
     def upsert_log():
         """
         React:
-          POST /api/logs
-          {
+        POST /api/logs
+        {
+            "user_id": "xxx",  // ✅ REQUIRED
             "date": "2025-12-02",
             "tookMedication": true,
             "sleepHours": 7,
@@ -714,14 +715,18 @@ Provide a helpful, educational response (2-3 sentences max):"""
             "mood": 4,
             "symptom": "fever",
             "note": "..."
-          }
-        Upsert a health log for the specified date.
-        If the log exists, it will be updated; otherwise, a new log will be created"""
+        }
+        """
         try:
             data = request.json or {}
             date_iso = data.get("date")
+            user_id = data.get("user_id")  # ✅ ADD
+            
             if not date_iso:
                 return jsonify({"error": "date is required"}), 400
+            
+            if not user_id:  # ✅ ADD
+                return jsonify({"error": "user_id is required"}), 400
 
             try:
                 dt = datetime.strptime(date_iso[:10], "%Y-%m-%d")
@@ -731,6 +736,7 @@ Provide a helpful, educational response (2-3 sentences max):"""
             date_str = dt.strftime("%m-%d-%Y")
 
             doc = {
+                "user_id": user_id,  # ✅ ADD
                 "date": date_str,
                 "tookMedication": bool(data.get("tookMedication", False)),
                 "sleepHours": data.get("sleepHours"),
@@ -741,8 +747,9 @@ Provide a helpful, educational response (2-3 sentences max):"""
                 "updated_at": datetime.now(),
             }
 
+            # ✅ FILTER update by BOTH date AND user_id
             db.health_logs.update_one(
-                {"date": date_str},
+                {"date": date_str, "user_id": user_id},
                 {"$set": doc},
                 upsert=True,
             )
@@ -753,18 +760,27 @@ Provide a helpful, educational response (2-3 sentences max):"""
             print("❌ upsert_log error:", e)
             return jsonify({"error": str(e)}), 500
 
+
     # ----------------- Export preview -----------------
     @app.route("/api/export/preview", methods=["POST"])
     def preview_export():
         """Preview export data without downloading"""
         try:
             data = request.json
+
+            user_id = data.get("user_id")  # ✅ ADD
+
             categories = data.get("categories", [])
             start_date = data.get("start_date")
             end_date = data.get("end_date")
 
+            if not user_id:  # ✅ ADD
+                return jsonify({"error": "user_id is required"}), 400
+
+            logs = list(db.health_logs.find({"user_id": user_id}))
+
             # Fetch from MongoDB instead of seed file
-            logs = list(db.health_logs.find())
+            #logs = list(db.health_logs.find())
 
             # Validate custom date range
             if start_date and end_date:
