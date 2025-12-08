@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './Export.css';
+import { supabase } from '../SupabaseClient'; // adjust path if needed
 
 function Export() {
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -12,6 +13,7 @@ function Export() {
   const [previewData, setPreviewData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [exportStatus, setExportStatus] = useState('');
+  const [userId, setUserId] = useState(null); // ✅ NEW
 
   const categories = [
     { id: 'sleep', name: 'Sleep Data', description: 'Hours of sleep per night' },
@@ -19,6 +21,24 @@ function Export() {
     { id: 'mood', name: 'Mood', description: 'Daily mood ratings (1-5 scale)' },
     { id: 'vital_signs', name: 'Vital Signs', description: 'Heart rate and other vitals' }
   ];
+
+  // Load user + init last 30 days
+  useEffect(() => {
+    const init = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUserId(user ? user.id : 'anonymous');
+
+      const end = new Date();
+      const start = new Date();
+      start.setDate(start.getDate() - 30);
+      setDateRange(prev => ({
+        ...prev,
+        startDate: start.toISOString().split('T')[0],
+        endDate: end.toISOString().split('T')[0]
+      }));
+    };
+    init();
+  }, []);
 
   // Handle category selection
   const handleCategoryChange = (categoryId) => {
@@ -68,9 +88,14 @@ function Export() {
       return;
     }
 
+    if (!userId) {
+      setExportStatus('User not loaded yet. Try again in a moment.');
+      return;
+    }
+
     setIsLoading(true);
     setExportStatus('');
-    setPreviewData(null); // Clear previous preview
+    setPreviewData(null);
 
     try {
       const response = await fetch('http://localhost:5001/api/export/preview', {
@@ -79,6 +104,7 @@ function Export() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          user_id: userId, // ✅ include user_id
           categories: selectedCategories,
           start_date: dateRange.startDate || null,
           end_date: dateRange.endDate || null
@@ -109,6 +135,11 @@ function Export() {
       return;
     }
 
+    if (!userId) {
+      setExportStatus('User not loaded yet. Try again in a moment.');
+      return;
+    }
+
     setIsLoading(true);
     setExportStatus('Preparing export...');
 
@@ -119,6 +150,7 @@ function Export() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          user_id: userId, // ✅ include user_id
           categories: selectedCategories,
           start_date: dateRange.startDate || null,
           end_date: dateRange.endDate || null,
@@ -127,13 +159,11 @@ function Export() {
       });
 
       if (response.ok) {
-        // Get filename from response headers
         const contentDisposition = response.headers.get('Content-Disposition');
         const filename = contentDisposition 
           ? contentDisposition.split('filename=')[1].replace(/"/g, '')
           : `health_data_export.${exportFormat}`;
 
-        // Create download link
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -145,8 +175,7 @@ function Export() {
         document.body.removeChild(a);
 
         setExportStatus('✅ File downloaded successfully!');
-        
-        // Log export event (for auditing)
+
         console.log('Export completed:', {
           categories: selectedCategories,
           dateRange,
@@ -163,18 +192,6 @@ function Export() {
       setIsLoading(false);
     }
   };
-
-  // Initialize with last 30 days
-  useEffect(() => {
-    const end = new Date();
-    const start = new Date();
-    start.setDate(start.getDate() - 30);
-    setDateRange(prev => ({
-      ...prev,
-      startDate: start.toISOString().split('T')[0],
-      endDate: end.toISOString().split('T')[0]
-    }));
-  }, []);
 
   return (
     <div className="export-container">

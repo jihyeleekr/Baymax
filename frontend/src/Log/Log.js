@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { supabase } from "../SupabaseClient"; 
 import "./HealthLogCalendar.css";
 
 const dayOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -17,7 +18,6 @@ const monthsOfYear = [
   "December",
 ];
 
-// 🔧 필요하면 여기 바꿔서 백엔드 주소 지정
 const API_BASE = process.env.REACT_APP_API_BASE_URL || "";
 
 const defaultForm = {
@@ -30,9 +30,11 @@ const defaultForm = {
 };
 
 function HealthLogCalendar() {
-  // normalize "today" at midnight
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  // ✅ ADD: Get current user ID
+  const [userId, setUserId] = useState(null);
 
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
@@ -53,19 +55,34 @@ function HealthLogCalendar() {
   const isFutureDate = (date) => date.getTime() > today.getTime();
 
   /* ============================
+     0) Get user on mount
+     ============================ */
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUserId(user?.id || "anonymous");  // ✅ Changed: default to "anonymous"
+    });
+  }, []);
+
+  /* ============================
      1) Load existing logs from backend
      ============================ */
   useEffect(() => {
+   
+
     const fetchLogs = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/health-logs`);
-        if (!res.ok) {
-          console.error("❌ Failed to fetch health logs:", res.status);
-          return;
-        }
-        const data = await res.json();
+      // ✅ ADD user_id to query (will be "anonymous" if not logged in)
+      const url = userId 
+        ? `${API_BASE}/api/health-logs?user_id=${userId}`
+        : `${API_BASE}/api/health-logs?user_id=anonymous`;
+      
+      const res = await fetch(url);
+      if (!res.ok) {
+        console.error("❌ Failed to fetch health logs:", res.status);
+        return;
+      }
+      const data = await res.json();
 
-        // de-dupe by date (idKey = YYYY-MM-DD)
         const byId = {};
 
         data.forEach((log) => {
@@ -100,7 +117,7 @@ function HealthLogCalendar() {
     };
 
     fetchLogs();
-  }, []);
+  }, [userId]); 
 
   /* ============================
      2) Month navigation
@@ -133,7 +150,6 @@ function HealthLogCalendar() {
   const handleDayClick = (day) => {
     const clicked = new Date(currentYear, currentMonth, day);
 
-    // 🚫 block future days
     if (isFutureDate(clicked)) return;
 
     setSelectedDate(clicked);
@@ -157,9 +173,13 @@ function HealthLogCalendar() {
 
     // fetch from backend just in case
     const loadFromBackend = async () => {
+    
+
       try {
         const iso = clicked.toISOString().slice(0, 10);
-        const res = await fetch(`${API_BASE}/api/logs/one?date=${iso}`);
+       
+        const effectiveUserId = userId || "anonymous";
+        const res = await fetch(`${API_BASE}/api/logs/one?date=${iso}&user_id=${effectiveUserId}`);
         if (!res.ok) {
           setForm(defaultForm);
           return;
@@ -205,13 +225,16 @@ function HealthLogCalendar() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!selectedDate) return;
+    
 
     setSaving(true);
-    const dateIso = selectedDate.toISOString().slice(0, 10); // YYYY-MM-DD
+    const dateIso = selectedDate.toISOString().slice(0, 10);
     const idKey = dateIso;
 
+     const effectiveUserId = userId || "anonymous";
+
     const payload = {
+      user_id: effectiveUserId,  // ✅ Changed
       date: dateIso,
       tookMedication: !!form.tookMedication,
       sleepHours:

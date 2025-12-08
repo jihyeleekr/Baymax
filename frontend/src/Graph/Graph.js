@@ -10,6 +10,7 @@ import {
   BarChart,
   Bar,
 } from "recharts";
+import { supabase } from "../SupabaseClient"; 
 import "./Graph.css";
 
 // Base URL for the backend API
@@ -151,6 +152,14 @@ function Graph() {
   const today = new Date();
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(today.getDate() - 30);
+  const [userId, setUserId] = useState(null);
+
+  // ✅ UPDATE: Get user on mount (allow anonymous)
+useEffect(() => {
+  supabase.auth.getUser().then(({ data: { user } }) => {
+    setUserId(user?.id || "anonymous");  // ✅ Changed: default to "anonymous"
+  });
+}, []);
 
   // Date values from <input type="date"> (YYYY-MM-DD)
   const [startDate, setStartDate] = useState(
@@ -173,6 +182,13 @@ function Graph() {
 
   const startInputRef = useRef(null);
   const endInputRef = useRef(null);
+
+  // ✅ ADD: Get user on mount (same pattern as chatbot)
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUserId(user?.id);
+    });
+  }, []);
 
   // Helper to open the native date picker
   const openPicker = (el) => {
@@ -211,7 +227,7 @@ function Graph() {
     [rawData, resolution]
   );
 
-  // Tooltip 
+  // Tooltip
   const tooltipFormatter = (value) => {
     if (value == null) return value;
     if (resolution === "daily") return value;
@@ -219,9 +235,11 @@ function Graph() {
     return Number(value.toFixed(2));
   };
 
-  // Fetch raw daily data from backend whenever the date range changes
+  
   useEffect(() => {
     const fetchData = async () => {
+     
+
       if (isRangeInvalid) {
         setRawData([]);
         setError("");
@@ -233,13 +251,14 @@ function Graph() {
         setLoading(true);
         setError("");
 
-        // Backend expects ?start=YYYY-MM-DD&end=YYYY-MM-DD
-        const params = new URLSearchParams();
-        if (startDate) params.append("start", startDate);
-        if (endDate) params.append("end", endDate);
+         // ✅ ADD user_id to query params (will be "anonymous" if not logged in)
+      const params = new URLSearchParams();
+      if (userId) params.append("user_id", userId);  // ✅ Only add if userId exists
+      if (startDate) params.append("start", startDate);
+      if (endDate) params.append("end", endDate);
 
-        const url = `${API_BASE}/api/health-logs?${params.toString()}`;
-        const res = await fetch(url);
+      const url = `${API_BASE}/api/health-logs?${params.toString()}`;
+      const res = await fetch(url);
 
         if (!res.ok) {
           setRawData([]);
@@ -293,7 +312,7 @@ function Graph() {
     };
 
     fetchData();
-  }, [startDate, endDate, isRangeInvalid]);
+  }, [userId, startDate, endDate, isRangeInvalid]); 
 
   const hasData = aggregatedData.length > 0;
 
