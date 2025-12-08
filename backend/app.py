@@ -146,6 +146,8 @@ def create_app():
             if not user_message:
                 return jsonify({"error": "No message provided"}), 400
 
+            
+
             # 1️⃣ ANONYMIZE USER INPUT
             anon_message, phi_map = PHIAnonymizer.anonymize(user_message)
             user_hash = PHIAnonymizer.hash_identifier(user_id)
