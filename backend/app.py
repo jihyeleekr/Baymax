@@ -245,30 +245,25 @@ Provide a helpful, educational response (2-3 sentences max):"""
     def get_health_logs():
         """
         Returns health logs from the `health_logs` collection.
-        
-        Required query parameter:
-        - user_id: Supabase user ID
-        
+
         Optional query parameters:
         - start: start date (YYYY-MM-DD)
         - end:   end date   (YYYY-MM-DD)
+        - user_id: Supabase user ID; defaults to "anonymous" for tests / logged-out
         """
         try:
+            # Default user_id for tests / anonymous usage
+            user_id = request.args.get("user_id") or "anonymous"
 
-        # ✅ Default to "anonymous" if not provided
-            user_id = request.args.get("user_id", "anonymous")
-            
             start_str = request.args.get("start")
             end_str = request.args.get("end")
 
-            # ✅ Filter by user_id (now required, defaults to "anonymous")
+            # Fetch only this user's logs
             logs = list(db.health_logs.find({"user_id": user_id}))
 
-            # Helper: parse "MM-DD-YYYY" into a Python date object
             def parse_mmddyyyy(s: str):
                 return datetime.strptime(s, "%m-%d-%Y").date()
 
-            # Parse query params if provided
             start_date = (
                 datetime.strptime(start_str, "%Y-%m-%d").date()
                 if start_str
@@ -280,10 +275,12 @@ Provide a helpful, educational response (2-3 sentences max):"""
                 else None
             )
 
+            if start_date and end_date and start_date > end_date:
+                return jsonify({"error": "Start date must not be after end date."}), 400
+
             filtered_logs = []
 
             for log in logs:
-                # Convert ObjectId to string for JSON serialization
                 log["_id"] = str(log["_id"])
 
                 date_str = log.get("date")
@@ -295,7 +292,6 @@ Provide a helpful, educational response (2-3 sentences max):"""
                 except ValueError:
                     continue
 
-                # Apply optional date range filters
                 if start_date and log_date < start_date:
                     continue
                 if end_date and log_date > end_date:
@@ -303,19 +299,22 @@ Provide a helpful, educational response (2-3 sentences max):"""
 
                 filtered_logs.append(log)
 
-            # Sort by date ascending using the "MM-DD-YYYY" field
+            # Sort by date ascending
             filtered_logs.sort(
                 key=lambda x: datetime.strptime(x["date"], "%m-%d-%Y")
             )
 
-            if start_date and end_date and start_date > end_date:
-                return jsonify({"error": "Start date must not be after end date."}), 400
+            if not filtered_logs:
+                # This is what your graph tests expect in the "no data" case
+                return jsonify({"error": "No health logs found between the selected date range."}), 404
 
-            # ✅ Return empty array instead of 404 (let frontend show "no data" message)
+            # Normal success path
             return jsonify(filtered_logs), 200
 
         except Exception as e:
+            print("❌ get_health_logs error:", e)
             return jsonify({"error": str(e)}), 500
+
 
 
     # ----------------- Export data (CSV, PDF, JSON) -----------------
@@ -325,7 +324,7 @@ Provide a helpful, educational response (2-3 sentences max):"""
         try:
             data = request.json
 
-            user_id = data.get("user_id")  # ✅ ADD
+            user_id = data.get("user_id") or "anonymous"
 
             categories = data.get("categories", [])
             start_date = data.get("start_date")
@@ -662,7 +661,7 @@ Provide a helpful, educational response (2-3 sentences max):"""
         """
         try:
             date_iso = request.args.get("date")
-            user_id = request.args.get("user_id", "anonymous")
+            user_id = request.args.get("user_id") or "anonymous"
             
             if not date_iso:
                 return jsonify({"error": "date query param is required"}), 400
@@ -720,13 +719,11 @@ Provide a helpful, educational response (2-3 sentences max):"""
         try:
             data = request.json or {}
             date_iso = data.get("date")
-            user_id = data.get("user_id")  # ✅ ADD
-            
+            user_id = data.get("user_id") or "anonymous"
+            # still keep the date validation as before
             if not date_iso:
                 return jsonify({"error": "date is required"}), 400
-            
-            if not user_id:  # ✅ ADD
-                return jsonify({"error": "user_id is required"}), 400
+
 
             try:
                 dt = datetime.strptime(date_iso[:10], "%Y-%m-%d")
@@ -768,7 +765,7 @@ Provide a helpful, educational response (2-3 sentences max):"""
         try:
             data = request.json
 
-            user_id = data.get("user_id")  # ✅ ADD
+            user_id = data.get("user_id") or "anonymous" # ✅ ADD
 
             categories = data.get("categories", [])
             start_date = data.get("start_date")
