@@ -854,6 +854,195 @@ Provide a helpful, educational response (2-3 sentences max):"""
             print(f"❌ Preview error: {str(e)}")
             return jsonify({"error": str(e)}), 500
 
+    # ========== Onboarding Endpoints ==========
+    
+    @app.route("/api/onboarding/profile", methods=["POST"])
+    def create_user_profile():
+        """Create user profile during onboarding"""
+        try:
+            data = request.json
+            
+            # Validate required fields
+            required_fields = ["user_id", "email", "full_name", "date_of_birth"]
+            for field in required_fields:
+                if field not in data:
+                    return jsonify({"error": f"{field} is required"}), 400
+            
+            # Validate email format
+            email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            if not re.match(email_regex, data["email"]):
+                return jsonify({"error": "Invalid email format"}), 400
+            
+            # Validate date of birth (not in future)
+            dob = datetime.strptime(data["date_of_birth"], "%Y-%m-%d")
+            if dob > datetime.now():
+                return jsonify({"error": "Date of birth cannot be in the future"}), 400
+            
+            # Check for duplicate user_id
+            existing = db.user_profiles.find_one({"user_id": data["user_id"]})
+            if existing:
+                return jsonify({"error": "User already exists"}), 409
+            
+            # Create profile
+            profile_data = {
+                "user_id": data["user_id"],
+                "email": data["email"],
+                "full_name": data["full_name"],
+                "date_of_birth": data["date_of_birth"],
+                "gender": data.get("gender"),
+                "height_cm": data.get("height_cm"),
+                "weight_kg": data.get("weight_kg"),
+                "blood_type": data.get("blood_type"),
+                "emergency_contact": data.get("emergency_contact"),
+                "created_at": datetime.now()
+            }
+            
+            db.user_profiles.insert_one(profile_data)
+            
+            return jsonify({
+                "message": "Profile created successfully",
+                "user_id": data["user_id"]
+            }), 201
+            
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    
+    @app.route("/api/onboarding/preferences", methods=["POST"])
+    def set_health_preferences():
+        """Set user health preferences"""
+        try:
+            data = request.json
+            
+            if "user_id" not in data:
+                return jsonify({"error": "user_id is required"}), 400
+            
+            # Validate reminder times if provided
+            if "preferences" in data and "reminder_times" in data["preferences"]:
+                time_regex = r'^([01]\d|2[0-3]):([0-5]\d)$'
+                for time_str in data["preferences"]["reminder_times"]:
+                    if not re.match(time_regex, time_str):
+                        return jsonify({"error": "Invalid time format"}), 400
+            
+            # Save preferences
+            db.user_preferences.update_one(
+                {"user_id": data["user_id"]},
+                {"$set": {
+                    "preferences": data.get("preferences", {}),
+                    "updated_at": datetime.now()
+                }},
+                upsert=True
+            )
+            
+            return jsonify({"message": "Preferences saved successfully"}), 200
+            
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    
+    @app.route("/api/onboarding/complete", methods=["POST"])
+    def complete_onboarding():
+        """Mark onboarding as complete"""
+        try:
+            data = request.json
+            
+            db.user_profiles.update_one(
+                {"user_id": data["user_id"]},
+                {"$set": {
+                    "onboarding_completed": True,
+                    "onboarding_completed_at": datetime.now()
+                }}
+            )
+            
+            return jsonify({
+                "message": "Onboarding completed",
+                "onboarding_completed": True
+            }), 200
+            
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    
+    @app.route("/api/onboarding/status", methods=["GET"])
+    def get_onboarding_status():
+        """Get onboarding status for a user"""
+        try:
+            user_id = request.args.get("user_id")
+            
+            if not user_id:
+                return jsonify({"error": "user_id is required"}), 400
+            
+            profile = db.user_profiles.find_one({"user_id": user_id})
+            preferences = db.user_preferences.find_one({"user_id": user_id})
+            
+            if not profile:
+                return jsonify({
+                    "onboarding_completed": False,
+                    "status": "not_started"
+                }), 200
+            
+            onboarding_complete = profile.get("onboarding_completed", False)
+            
+            return jsonify({
+                "onboarding_completed": onboarding_complete,
+                "status": "completed" if onboarding_complete else "in_progress",
+                "profile_completed": True,
+                "preferences_completed": preferences is not None
+            }), 200
+            
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    
+    @app.route("/api/onboarding/medical-history", methods=["POST"])
+    def add_medical_history():
+        """Add medical history during onboarding"""
+        try:
+            data = request.json
+            
+            if data.get("skipped"):
+                return jsonify({
+                    "message": "Medical history skipped",
+                    "skipped": True
+                }), 200
+            
+            db.medical_history.update_one(
+                {"user_id": data["user_id"]},
+                {"$set": {
+                    "medical_history": data.get("medical_history", {}),
+                    "updated_at": datetime.now()
+                }},
+                upsert=True
+            )
+            
+            return jsonify({"message": "Medical history saved successfully"}), 200
+            
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    
+    @app.route("/api/onboarding/accept-terms", methods=["POST"])
+    def accept_terms():
+        """Accept terms and privacy policy"""
+        try:
+            data = request.json
+            
+            if not data.get("terms_accepted"):
+                return jsonify({"error": "Must accept terms of service"}), 400
+            
+            db.user_profiles.update_one(
+                {"user_id": data["user_id"]},
+                {"$set": {
+                    "terms_accepted": True,
+                    "privacy_accepted": data.get("privacy_accepted", False),
+                    "terms_accepted_at": datetime.now(),
+                    "acceptance_ip": data.get("ip_address")
+                }}
+            )
+            
+            return jsonify({
+                "message": "Terms accepted",
+                "terms_accepted": True
+            }), 200
+            
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
     return app
 
 def log_conversation(db, user_hash, user_msg, bot_response, classification, phi_map, is_emergency):
