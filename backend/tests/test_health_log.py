@@ -120,6 +120,37 @@ class HealthLogsApiTestCase(unittest.TestCase):
         self.assertIsNotNone(doc2)
         self.assertEqual(doc2.get("sleepHours"), 5.0)  # updated value
 
+    def test_upsert_log_uses_default_values_for_missing_fields(self):
+        """
+        When optional fields are omitted, the backend should still
+        upsert a document and apply sensible defaults.
+        """
+        date_iso = "2030-01-05"
+        payload = {
+            "date": date_iso,
+            # omit sleepHours, vital_bpm, mood, symptom, note
+            "tookMedication": False,
+        }
+
+        resp = self.client.post(
+            "/api/logs",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertTrue(data.get("ok"))
+
+        dt = datetime.strptime(date_iso, "%Y-%m-%d")
+        date_str = dt.strftime("%m-%d-%Y")
+        doc = self.db.health_logs.find_one({"date": date_str})
+        self.assertIsNotNone(doc)
+        # tookMedication should be False
+        self.assertFalse(doc.get("tookMedication"))
+        # Optional fields can exist with None / default values
+        self.assertIn("note", doc)
+        self.assertIsInstance(doc.get("note"), str)
+
     # ---------- /api/logs/one (GET) ----------
 
     def test_get_single_log_missing_date_param(self):
@@ -192,13 +223,103 @@ class HealthLogsApiTestCase(unittest.TestCase):
         self.assertEqual(data["date"], date_iso)
         self.assertTrue(data["tookMedication"])
         self.assertEqual(data["sleepHours"], 6.5)
-        # Note: current backend uses key 'vital_pbm' (typo).
-        # If you fix the typo in the backend, change this assertion to 'vital_bpm'.
         self.assertEqual(data["vital_bpm"], 78)
         self.assertEqual(data["mood"], 3)
         self.assertEqual(data["symptom"], "nausea")
         self.assertEqual(data["note"], "Nausea after lunch (unit test)")
 
+    # ---------- /api/health-logs (GET) ----------
 
-if __name__ == "__main__":
-    unittest.main()
+    def test_get_health_logs_start_after_end_returns_400(self):
+        """
+        If start date is after end date, /api/health-logs should return 400
+        with the appropriate error message.
+        """
+        resp = self.client.get(
+            "/api/health-logs?start=2030-01-10&end=2030-01-09"
+        )
+        self.assertEqual(resp.status_code, 400)
+
+        data = json.loads(resp.data)
+        self.assertIn("error", data)
+        self.assertEqual(data["error"], "Start date must not be after end date.")
+
+    def test_get_health_logs_no_data_returns_404(self):
+        """
+        If no logs exist in the requested date range, /api/health-logs
+        should return 404 with a clear error message.
+        """
+        # Very old range that should be empty
+        resp = self.client.get(
+            "/api/health-logs?start=1960-01-01&end=1960-01-01"
+        )
+        self.assertEqual(resp.status_code, 404)
+
+        data = json.loads(resp.data)
+        self.assertIn("error", data)
+        self.assertEqual(
+            data["error"],
+            "No health logs found between the selected date range."
+        )
+
+    def test_get_health_logs_returns_inserted_future_logs(self):
+        """
+        After inserting logs via /api/logs in a future date range,
+        /api/health-logs with that range should return those logs.
+        """
+        # Insert two logs on consecutive future dates
+        date_iso_1 = "2030-01-10"
+        date_iso_2 = "2030-01-11"
+
+        payload1 = {
+            "date": date_iso_1,
+            "tookMedication": True,
+            "sleepHours": 7.0,
+            "vital_bpm": 75,
+            "mood": 4,
+            "symptom": "tired",
+            "note": "First future log",
+        }
+        payload2 = {
+            "date": date_iso_2,
+            "tookMedication": False,
+            "sleepHours": 6.0,
+            "vital_bpm": 70,
+            "mood": 2,
+            "symptom": "headache",
+            "note": "Second future log",
+        }
+
+        self.client.post(
+            "/api/logs",
+            data=json.dumps(payload1),
+            content_type="application/json",
+        )
+        self.client.post(
+            "/api/logs",
+            data=json.dumps(payload2),
+            content_type="application/json",
+        )
+
+        # Now query /api/health-logs for that exact range
+        resp = self.client.get(
+            "/api/health-logs?start=2030-01-10&end=2030-01-11"
+        )
+        self.assertEqual(resp.status_code, 200)
+
+        logs = json.loads(resp.data)
+        self.assertIsInstance(logs, list)
+
+        # Dates in /api/health-logs are returned as MM-DD-YYYY
+        dt1 = datetime.strptime(date_iso_1, "%Y-%m-%d")
+        dt2 = datetime.strptime(date_iso_2, "%Y-%m-%d")
+        date_str_1 = dt1.strftime("%m-%d-%Y")
+        date_str_2 = dt2.strftime("%m-%d-%Y")
+
+        dates = {log.get("date") for log in logs}
+        self.assertIn(date_str_1, dates)
+        self.assertIn(date_str_2, dates)
+
+
+# if __name__ == "__main__":
+#     unittest.main()
