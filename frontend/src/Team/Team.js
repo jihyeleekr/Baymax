@@ -16,21 +16,21 @@ function Team() {
         <div className="team-card">
           <div className="team-avatar">A</div>
           <h3 className="team-name">Abdullah Alwazan</h3>
-          <p className="team-role"></p>
+          <p className="team-role">Product Owner</p>
         </div>
 
         {/* Hari */}
         <div className="team-card">
           <div className="team-avatar">H</div>
           <h3 className="team-name">Hari Amin</h3>
-          <p className="team-role">Chatbot Integration & AI Engineer</p>
+          <p className="team-role">Chatbot AI Engineer & File Upload Developer</p>
         </div>
 
         {/* Can */}
         <div className="team-card">
           <div className="team-avatar">C</div>
           <h3 className="team-name">Can Gokmen</h3>
-          <p className="team-role">File Upload / Report Export Features Developer</p>
+          <p className="team-role">Report Export Features Developer</p>
         </div>
 
         {/* Jihye */}
