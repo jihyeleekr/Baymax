@@ -73,7 +73,7 @@ function BaymaxChat() {
           setMessages(prev => [...prev, {
             id: Date.now(),
             sender: "bot",
-            text: "📄 I can see your uploaded prescription. What would you like to know about it?",
+            text: " I can see your uploaded prescription. What would you like to know about it?",
             time: getFormattedTime()
           }]);
         })
@@ -148,7 +148,7 @@ function BaymaxChat() {
         body: JSON.stringify({ 
           message: userInput, 
           user_id: userId,
-          prescription_id: prescriptionId  // 🔑 ADD THIS
+          prescription_id: prescriptionId 
         })
       });
 

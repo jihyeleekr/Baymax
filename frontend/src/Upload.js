@@ -133,20 +133,7 @@ function Upload() {
             </div>
 
             {/* Medications */}
-            <div className="result-card">
-              <h2>💊 Medications</h2>
-              {prescription.medications && prescription.medications.length > 0 ? (
-                <ul className="medication-list">
-                  {prescription.medications.map((med, index) => (
-                    <li key={index}>
-                      <strong>{med.name}</strong> - {med.dosage}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p>No medications detected</p>
-              )}
-            </div>
+            
 
             {/* Warnings */}
             {prescription.warnings && prescription.warnings.length > 0 && (
@@ -160,16 +147,29 @@ function Upload() {
               </div>
             )}
 
+
+           {/* Full report */}
+{prescription.allergies && prescription.allergies.length > 0 && (
+  <div className="result-card allergies-card">
+    <h2>Raw Data</h2>
+    <p className="allergies-text">
+      {prescription.allergies.join(" ")}
+    </p>
+  </div>
+)}
+
+       
+
             {/* AI Explanation */}
             <div className="result-card explanation-card">
-              <h2>📝 Plain Language Summary</h2>
+              <h2>Plain Language Summary</h2>
               <p className="explanation-text">{prescription.explanation}</p>
             </div>
 
             {/* Action Buttons */}
             <div className="action-buttons">
               <button className="ask-baymax-btn" onClick={handleAskBaymax}>
-                💬 Ask Baymax Questions
+                Ask Baymax Questions
               </button>
               <button className="reset-btn" onClick={handleReset}>
                 Upload Another Prescription
