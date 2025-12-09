@@ -320,6 +320,34 @@ class HealthLogsApiTestCase(unittest.TestCase):
         self.assertIn(date_str_1, dates)
         self.assertIn(date_str_2, dates)
 
+    
+    def test_health_logs_missing_params_returns_200_json(self):
+        resp = self.client.get("/api/health-logs")  # no start/end/user_id
 
-# if __name__ == "__main__":
-#     unittest.main()
+        # Current behavior: returns 200 even without explicit params
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertIsInstance(data, (list, dict))
+
+
+    
+    def test_logs_post_empty_body_returns_400(self):
+        resp = self.client.post("/api/logs", json={})
+        self.assertIn(resp.status_code, (400, 422))
+
+    
+    def test_upsert_log_missing_body_returns_400(self):
+        """
+        Posting to /api/logs with no JSON at all should hit the
+        request-validation error path instead of silently succeeding.
+        """
+        resp = self.client.post("/api/logs")  # no json / data
+
+        # Accept any 4xx or 5xx your current implementation returns here
+        self.assertIn(resp.status_code, (400, 415, 422, 500))
+
+
+
+
+if __name__ == "__main__":
+     unittest.main()

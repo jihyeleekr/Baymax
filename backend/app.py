@@ -108,6 +108,7 @@ def create_app():
     app = Flask(__name__)
     CORS(app)
 
+
     # MongoDB connection
     client = MongoClient(os.getenv("MONGODB_URI"))
     db = client["baymax"]
@@ -133,7 +134,7 @@ def create_app():
     # ----------------- Chat (Gemini) with ANONYMIZATION AND PRESCRIPTION CONTEXT -----------------
     @app.route("/api/chat", methods=["POST"])
     def chat():
-        """Chat endpoint with PHI anonymization, filtering, and prescription context"""
+        """Chat endpoint with PHI anonymization, filtering, prescription context, and conversation history."""
         if gemini_service is None:
             return jsonify({"error": "Gemini API not configured"}), 500
 
@@ -141,12 +142,10 @@ def create_app():
             data = request.json
             user_message = data.get("message", "")
             user_id = data.get("user_id", "anonymous")
-            prescription_id = data.get("prescription_id")  # 🆕 NEW
+            prescription_id = data.get("prescription_id")
 
             if not user_message:
                 return jsonify({"error": "No message provided"}), 400
-
-            
 
             # 1️⃣ ANONYMIZE USER INPUT
             anon_message, phi_map = PHIAnonymizer.anonymize(user_message)
@@ -155,86 +154,198 @@ def create_app():
             # 2️⃣ CHECK FOR EMERGENCY
             if ResponseFilter.is_emergency(user_message):
                 emergency_response = {
-                    'response': '🚨 EMERGENCY DETECTED\n\nPlease call 911 immediately or go to the nearest emergency room. This is not a substitute for emergency medical care.',
-                    'classification': 'EMERGENCY',
-                    'anonymized': True,
-                    'phi_detected': len(phi_map) > 0,
-                    'timestamp': datetime.now().isoformat()
+                    "response": "🚨 EMERGENCY DETECTED\n\nPlease call 911 immediately or go to the nearest emergency room.",
+                    "classification": "EMERGENCY",
+                    "anonymized": True,
+                    "phi_detected": len(phi_map) > 0,
+                    "timestamp": datetime.now().isoformat()
                 }
-                
-                log_conversation(db, user_hash, anon_message, emergency_response['response'], 
-                               'EMERGENCY', phi_map, True)
-                
+
+                log_conversation(
+                    db,
+                    user_hash,
+                    anon_message,
+                    emergency_response["response"],
+                    "EMERGENCY",
+                    phi_map,
+                    True
+                )
+
                 return jsonify(emergency_response), 200
 
-            # 3️⃣ CLASSIFY QUERY
+            # 3️⃣ IF PHI DETECTED, REFUSE TO ANSWER
+            if len(phi_map) > 0:
+                phi_response = (
+                    "⚠️ I've detected personal health information in your message. "
+                    "For your privacy and safety, I cannot provide personalized medical advice. "
+                    "Please consult a healthcare provider directly for questions about your specific situation."
+                )
+
+                log_conversation(
+                    db,
+                    user_hash,
+                    anon_message,
+                    phi_response,
+                    "PHI_DETECTED",
+                    phi_map,
+                    True
+                )
+
+                return jsonify({
+                    "response": phi_response,
+                    "classification": "PHI_DETECTED",
+                    "anonymized": True,
+                    "phi_detected": True,
+                    "timestamp": datetime.now().isoformat()
+                }), 200
+
+            # 4️⃣ NO PHI → ANSWER NORMALLY
             classification = ResponseFilter.classify(anon_message)
 
-            # 🆕 4️⃣ LOAD PRESCRIPTION CONTEXT IF PROVIDED
+            # 5️⃣ LOAD CONVERSATION HISTORY (last 30 messages)
+            history_text = ""
+            try:
+                history_cursor = db.chat_conversations.find(
+                    {"user_id_hash": user_hash}
+                ).sort("timestamp", -1).limit(30)
+
+                history = list(history_cursor)[::-1]  # oldest → newest
+
+                if history:
+                    history_lines = []
+                    for h in history:
+                        history_lines.append(f"User: {h.get('user_message', '')}")
+                        history_lines.append(f"Baymax: {h.get('bot_response', '')}")
+
+                    history_text = "\n".join(history_lines[-60:])  # cap at 60 lines
+            except Exception as e:
+                print(f"Error loading conversation history: {e}")
+                history_text = ""
+
+
+            try:
+                last_conv = db.chat_conversations.find_one(
+                    {"user_id_hash": user_hash},
+                    sort=[("timestamp", -1)]
+                )
+                if last_conv and last_conv.get("classification") == "PHI_DETECTED":
+                    history_text = ""
+            except Exception as e:
+                print(f"Error checking last conversation: {e}")
+
+
+            # 6️⃣ LOAD PRESCRIPTION CONTEXT
             prescription_context = ""
+
+            # Try explicit prescription_id first
             if prescription_id:
                 from bson.objectid import ObjectId
                 try:
-                    prescription = db.prescriptions.find_one({'_id': ObjectId(prescription_id)})
-                    
+                    prescription = db.prescriptions.find_one({"_id": ObjectId(prescription_id)})
                     if prescription:
-                        meds = prescription.get('medications', [])
-                        med_list = '\n'.join([f"- {m['name']} {m['dosage']}" for m in meds])
-                        warnings = '\n'.join([f"- {w}" for w in prescription.get('warnings', [])])
-                        
+                        meds = prescription.get("medications", [])
+                        med_list = "\n".join([f"- {m['name']} {m['dosage']}" for m in meds])
+
+                        warnings = prescription.get("warnings", [])
+                        warning_list = "\n".join([f"- {w}" for w in warnings])
+
+                        allergies = prescription.get("allergies", [])
+                        allergy_list = "\n".join([f"- {a}" for a in allergies])
+
+                        excerpt = (prescription.get("extracted_text", "") or "")[:500]
+
                         prescription_context = f"""
-PRESCRIPTION CONTEXT:
-The user has uploaded a prescription with:
+    PRESCRIPTION CONTEXT:
+    The user has uploaded a prescription with:
 
-Medications:
-{med_list}
+    Medications:
+    {med_list or '- None detected'}
 
-Warnings:
-{warnings}
+    Warnings:
+    {warning_list or '- None detected'}
 
-Full prescription text: {prescription.get('extracted_text', '')[:500]}...
-"""
+    Allergies:
+    {allergy_list or '- None listed'}
+
+    Prescription excerpt:
+    {excerpt}
+    """
                 except Exception as e:
-                    print(f"Error loading prescription: {e}")
+                    print(f"Error loading prescription by ID: {e}")
 
-            # 5️⃣ GENERATE RESPONSE WITH SAFETY CONTEXT AND PRESCRIPTION
-            context_prompt = f"""You are Baymax, a health information assistant. Follow these rules:
+            # Fallback: most recent prescription for this user
+            if not prescription_context:
+                try:
+                    latest_prescription = db.prescriptions.find_one(
+                        {"user_id_hash": user_hash},
+                        sort=[("uploaded_at", -1)]
+                    )
 
-1. NEVER provide medical diagnosis or treatment advice
-2. NEVER ask for personal identifying information
-3. Always recommend consulting healthcare providers for medical decisions
-4. Provide general, educational health information only
-5. Be empathetic and supportive
+                    if latest_prescription:
+                        meds = latest_prescription.get("medications", [])
+                        med_list = "\n".join([f"- {m['name']} {m['dosage']}" for m in meds])
 
-{prescription_context}
+                        warnings = latest_prescription.get("warnings", [])
+                        warning_list = "\n".join([f"- {w}" for w in warnings])
 
-Query Type: {classification}
-User Query: "{anon_message}"
+                        allergies = latest_prescription.get("allergies", [])
+                        allergy_list = "\n".join([f"- {a}" for a in allergies])
 
-Provide a helpful, educational response (2-3 sentences max):"""
+                        excerpt = (latest_prescription.get("extracted_text", "") or "")[:500]
+
+                        prescription_context = f"""
+    PRESCRIPTION CONTEXT (most recent on file):
+    The user has a prescription with:
+
+    Medications:
+    {med_list or '- None detected'}
+
+    Warnings:
+    {warning_list or '- None detected'}
+
+    Allergies:
+    {allergy_list or '- None listed'}
+
+    Prescription excerpt:
+    {excerpt}
+    """
+                    else:
+                        prescription_context = ""
+                except Exception as e:
+                    print(f"Error loading latest prescription: {e}")
+                    prescription_context = ""
+
+            # 7️⃣ GENERATE RESPONSE WITH FULL CONTEXT
+            context_prompt = f"""You are Baymax, a health information assistant.
+
+    Rules:
+    1. Provide general, educational health information.
+    2. You may mention common over‑the‑counter options and self‑care steps that are usually safe for most adults, but do NOT customize doses or make decisions for the user.
+    3. Do NOT diagnose specific conditions or tell the user exactly what they personally should do.
+    4. Always suggest talking to a healthcare provider for diagnosis or treatment decisions.
+
+    {f"CONVERSATION HISTORY (last 30 exchanges):\n{history_text}\n" if history_text else ""}
+
+    {prescription_context}
+
+    Query Type: {classification}
+    User Question: "{anon_message}"
+
+    Answer in 2–3 sentences with practical, general information:
+    """
 
             bot_response = gemini_service.chat(context_prompt)
+            final_response = bot_response
 
-            # 6️⃣ ADD SAFETY DISCLAIMER
-            disclaimers = {
-                'SYMPTOM': '⚠️ For symptom evaluation, please consult a healthcare provider.\n\n',
-                'TEST_RESULT': '⚠️ For test result interpretation, please speak with your doctor.\n\n',
-                'MEDICATION': '⚠️ For medication questions, consult your pharmacist or doctor.\n\n',
-                'VITAL_SIGNS': '⚠️ For vital sign concerns, contact your healthcare provider.\n\n'
-            }
-            
-            disclaimer = disclaimers.get(classification, '')
-            final_response = disclaimer + bot_response
-
-            # 7️⃣ LOG TO DATABASE (ANONYMIZED)
+            # 8️⃣ LOG AND RETURN
             log_conversation(db, user_hash, anon_message, final_response, classification, phi_map, False)
 
             return jsonify({
-                'response': final_response,
-                'classification': classification,
-                'anonymized': True,
-                'phi_detected': len(phi_map) > 0,
-                'timestamp': datetime.now().isoformat()
+                "response": final_response,
+                "classification": classification,
+                "anonymized": True,
+                "phi_detected": False,
+                "timestamp": datetime.now().isoformat()
             }), 200
 
         except Exception as e:
@@ -242,80 +353,81 @@ Provide a helpful, educational response (2-3 sentences max):"""
             return jsonify({"error": str(e)}), 500
 
 
-    # ----------------- Health logs API (from MongoDB) -----------------
+
+        # ----------------- Health logs API (from MongoDB) -----------------
     @app.route("/api/health-logs", methods=["GET"])
     def get_health_logs():
-        """
-        Returns health logs from the `health_logs` collection.
+            """
+            Returns health logs from the `health_logs` collection.
 
-        Optional query parameters:
-        - start: start date (YYYY-MM-DD)
-        - end:   end date   (YYYY-MM-DD)
-        - user_id: Supabase user ID; defaults to "anonymous" for tests / logged-out
-        """
-        try:
-            # Default user_id for tests / anonymous usage
-            user_id = request.args.get("user_id") or "anonymous"
+            Optional query parameters:
+            - start: start date (YYYY-MM-DD)
+            - end:   end date   (YYYY-MM-DD)
+            - user_id: Supabase user ID; defaults to "anonymous" for tests / logged-out
+            """
+            try:
+                # Default user_id for tests / anonymous usage
+                user_id = request.args.get("user_id") or "anonymous"
 
-            start_str = request.args.get("start")
-            end_str = request.args.get("end")
+                start_str = request.args.get("start")
+                end_str = request.args.get("end")
 
-            # Fetch only this user's logs
-            logs = list(db.health_logs.find({"user_id": user_id}))
+                # Fetch only this user's logs
+                logs = list(db.health_logs.find({"user_id": user_id}))
 
-            def parse_mmddyyyy(s: str):
-                return datetime.strptime(s, "%m-%d-%Y").date()
+                def parse_mmddyyyy(s: str):
+                    return datetime.strptime(s, "%m-%d-%Y").date()
 
-            start_date = (
-                datetime.strptime(start_str, "%Y-%m-%d").date()
-                if start_str
-                else None
-            )
-            end_date = (
-                datetime.strptime(end_str, "%Y-%m-%d").date()
-                if end_str
-                else None
-            )
+                start_date = (
+                    datetime.strptime(start_str, "%Y-%m-%d").date()
+                    if start_str
+                    else None
+                )
+                end_date = (
+                    datetime.strptime(end_str, "%Y-%m-%d").date()
+                    if end_str
+                    else None
+                )
 
-            if start_date and end_date and start_date > end_date:
-                return jsonify({"error": "Start date must not be after end date."}), 400
+                if start_date and end_date and start_date > end_date:
+                    return jsonify({"error": "Start date must not be after end date."}), 400
 
-            filtered_logs = []
+                filtered_logs = []
 
-            for log in logs:
-                log["_id"] = str(log["_id"])
+                for log in logs:
+                    log["_id"] = str(log["_id"])
 
-                date_str = log.get("date")
-                if not date_str:
-                    continue
+                    date_str = log.get("date")
+                    if not date_str:
+                        continue
 
-                try:
-                    log_date = parse_mmddyyyy(date_str)
-                except ValueError:
-                    continue
+                    try:
+                        log_date = parse_mmddyyyy(date_str)
+                    except ValueError:
+                        continue
 
-                if start_date and log_date < start_date:
-                    continue
-                if end_date and log_date > end_date:
-                    continue
+                    if start_date and log_date < start_date:
+                        continue
+                    if end_date and log_date > end_date:
+                        continue
 
-                filtered_logs.append(log)
+                    filtered_logs.append(log)
 
-            # Sort by date ascending
-            filtered_logs.sort(
-                key=lambda x: datetime.strptime(x["date"], "%m-%d-%Y")
-            )
+                # Sort by date ascending
+                filtered_logs.sort(
+                    key=lambda x: datetime.strptime(x["date"], "%m-%d-%Y")
+                )
 
-            if not filtered_logs:
-                # This is what your graph tests expect in the "no data" case
-                return jsonify({"error": "No health logs found between the selected date range."}), 404
+                if not filtered_logs:
+                    # This is what your graph tests expect in the "no data" case
+                    return jsonify({"error": "No health logs found between the selected date range."}), 404
 
-            # Normal success path
-            return jsonify(filtered_logs), 200
+                # Normal success path
+                return jsonify(filtered_logs), 200
 
-        except Exception as e:
-            print("❌ get_health_logs error:", e)
-            return jsonify({"error": str(e)}), 500
+            except Exception as e:
+                print("❌ get_health_logs error:", e)
+                return jsonify({"error": str(e)}), 500
 
 
 
@@ -598,17 +710,18 @@ Provide a helpful, educational response (2-3 sentences max):"""
             
             # Extract text based on file type
             extracted_text = ""
+           
             if filename.lower().endswith('.pdf'):
                 extracted_text = extract_pdf_text(filepath)
             else:
                 extracted_text = extract_image_text(filepath)
-            
+
             # Parse prescription data
             prescription_data = parse_prescription(extracted_text)
-            
+
             # Generate AI explanation
             explanation = generate_prescription_explanation(extracted_text)
-            
+
             # Store in MongoDB
             doc = {
                 'user_id_hash': user_hash,
@@ -617,25 +730,31 @@ Provide a helpful, educational response (2-3 sentences max):"""
                 'extracted_text': extracted_text,
                 'medications': prescription_data['medications'],
                 'warnings': prescription_data['warnings'],
+                'allergies': prescription_data.get('allergies', []),  # ✅ Changed from parsed_data to prescription_data
+                'diagnoses': prescription_data.get('diagnoses', []),  # ✅ Changed from parsed_data to prescription_data
                 'ai_explanation': explanation,
                 'uploaded_at': datetime.now()
             }
-            
+
             result = db.prescriptions.insert_one(doc)
             doc['_id'] = str(result.inserted_id)
-            
+
             return jsonify({
                 'success': True,
                 'prescription_id': str(result.inserted_id),
                 'extracted_text': extracted_text,
                 'medications': prescription_data['medications'],
                 'warnings': prescription_data['warnings'],
+                'allergies': prescription_data.get('allergies', []),  # ✅ Include in response
+                'diagnoses': prescription_data.get('diagnoses', []),  # ✅ Include in response
                 'explanation': explanation
             }), 200
-            
+
         except Exception as e:
-            print(f"❌ Upload error: {str(e)}")
-            return jsonify({"error": str(e)}), 500
+                print(f"❌ Upload error: {str(e)}")
+                return jsonify({"error": str(e)}), 500
+
+            #-------------------------------------------------------------------
 
     @app.route("/api/prescription/<prescription_id>", methods=["GET"])
     def get_prescription(prescription_id):
@@ -1109,31 +1228,53 @@ def extract_image_text(filepath):
 
 
 def parse_prescription(text):
-    """Parse medications and warnings from text"""
+    """Parse medications, warnings, allergies, and diagnoses from text."""
     medications = []
     warnings = []
-    
-    # Regex patterns for common medication formats
+    allergies = []
+    diagnoses = []
+
+    # Regex for common medication formats, e.g. "Metformin 1000 mg"
     med_pattern = r'([A-Z][a-z]+(?:ide|cin|ol|pril|stat|form|mine|cillin))\s+(\d+\s*mg)'
     matches = re.findall(med_pattern, text, re.IGNORECASE)
-    
+
     for name, dosage in matches:
         medications.append({
             'name': name,
             'dosage': dosage
         })
-    
-    # Extract warnings
+
+    # Extract warnings (simple heuristics)
     if 'BLACK BOX WARNING' in text.upper():
         warnings.append('BLACK BOX WARNING present')
-    if 'allerg' in text.lower():
-        warnings.append('Allergy information detected')
     if 'contraindication' in text.lower():
         warnings.append('Contraindications noted')
-    
+
+    # 🔹 Allergies section (heuristic for your PDF format)
+    # Looks for lines under an "ALLERGIES" heading
+    allergy_section_match = re.search(r'ALLERGIES(.*?)(?:\n\n|\Z)', text, re.IGNORECASE | re.DOTALL)
+    if allergy_section_match:
+        allergy_block = allergy_section_match.group(1)
+        # Split on newlines / bullets and keep non-empty lines
+        for line in allergy_block.splitlines():
+            line = line.strip(" \u2022-•\t")
+            if line:
+                allergies.append(line)
+
+    # 🔹 Diagnoses section
+    diag_section_match = re.search(r'DIAGNOSES(.*?)(?:\n\n|\Z)', text, re.IGNORECASE | re.DOTALL)
+    if diag_section_match:
+        diag_block = diag_section_match.group(1)
+        for line in diag_block.splitlines():
+            line = line.strip(" \u2022-•\t")
+            if line:
+                diagnoses.append(line)
+
     return {
         'medications': medications,
-        'warnings': warnings
+        'warnings': warnings,
+        'allergies': allergies,
+        'diagnoses': diagnoses
     }
 
 
