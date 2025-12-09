@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "./SupabaseClient";
 import "./Home.css";
+import { useNavigate } from "react-router-dom";
+
 
 function Home() {
   const [user, setUser] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Handle OAuth tokens in URL hash
@@ -54,8 +57,8 @@ function Home() {
           Baymax helps you stay on top of your health by chatting with you, organizing your logs, visualizing trends, and turning your data into clear, shareable reports.
         </div>
         <div className="home-buttons">
-          <button className="home-btn primary">Try Baymax Chatbot</button>
-          <button className="home-btn secondary">View Health Insights</button>
+          <button className="home-btn primary" onClick={() => navigate("/baymax")}>Try Baymax Chatbot</button>
+          <button className="home-btn secondary" onClick={() => navigate("/graph")}>View Health Insights</button>
         </div>
         <div className="home-highlights">
           <span>Smart Q&amp;A</span>
