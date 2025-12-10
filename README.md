@@ -113,12 +113,58 @@ REACT_APP_API_BASE_URL=http://localhost:5001
 
 See [`SETUP.md`](SETUP.md) for detailed installation instructions.
 
+## Testing
+
+### Run All Tests
+
+```bash
+cd backend
+source venv/bin/activate  # Windows: venv\Scripts\activate
+python -m unittest discover tests/ -v
+```
+
+### Run Specific Test Files
+
+```bash
+# Run individual test suites
+python -m unittest tests.test_chatbot -v
+python -m unittest tests.test_export -v
+python -m unittest tests.test_health_log -v
+python -m unittest tests.test_onboarding -v
+python -m unittest tests.test_graph -v
+```
+
+### Generate Coverage Report
+
+```bash
+# Install coverage (if not already installed)
+pip install coverage
+
+# Run tests with coverage
+coverage run -m unittest discover tests/
+
+# View coverage report in terminal
+coverage report -m
+
+# Generate HTML coverage report
+coverage html
+
+# Open the coverage report in browser
+open htmlcov/index.html  # macOS
+# or
+xdg-open htmlcov/index.html  # Linux
+# or
+start htmlcov/index.html  # Windows
+```
+
+The coverage report shows which lines of code are tested and helps identify areas that need additional tests.
+
 ## Features
 
 - **AI Chat**: Talk to Baymax about your health using Gemini AI
 - **Document Upload**: Upload medical documents (PDF/images) with OCR processing
   - **Note**: Prescription uploads are not permitted. Other medical documents (lab reports, medical records, etc.) are accepted.
-- **Health Logging**: Track medications, sleep, vitals, mood, and symptoms
+- **Health Logging**: Track sleep, vitals, mood, and symptoms
 - **Data Visualization**: View trends with interactive graphs (Recharts)
 - **Data Export**: Export health data in CSV, PDF, or JSON formats
 - **User Authentication**: Secure login with Google OAuth via Supabase

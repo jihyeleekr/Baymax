@@ -10,7 +10,7 @@ import {
   BarChart,
   Bar,
 } from "recharts";
-import { supabase } from "../SupabaseClient"; 
+import { supabase } from "../../SupabaseClient"; 
 import "./Graph.css";
 
 // Base URL for the backend API

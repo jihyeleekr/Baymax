@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './Export.css';
-import { supabase } from '../SupabaseClient'; // adjust path if needed
+import { supabase } from '../../SupabaseClient';
 
 function Export() {
   const [selectedCategories, setSelectedCategories] = useState([]);

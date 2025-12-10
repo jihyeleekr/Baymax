@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../SupabaseClient"; 
+import { supabase } from "../../SupabaseClient"; 
 import "./HealthLogCalendar.css";
 
 const dayOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];

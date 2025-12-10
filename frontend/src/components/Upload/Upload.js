@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "./SupabaseClient";
+import { supabase } from "../../SupabaseClient";
 import "./Upload.css";
 
 function Upload() {

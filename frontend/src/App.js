@@ -1,13 +1,13 @@
-import BaymaxChat from "./components/BaymaxChat";
+import BaymaxChat from "./components/Chatbot/BaymaxChat";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Nav from "./Nav";
-import Team from "./Team/Team";
-import Home from "./Home";
-import Footer from "./Footer/Footer";
-import Upload from "./Upload";
-import Export from "./Export/Export";
-import Graph from "./Graph/Graph";
-import Log from "./Log/Log";
+import Nav from "./components/Nav/Nav";
+import Team from "./components/Team/Team";
+import Home from "./components/Home/Home";
+import Footer from "./components/Footer/Footer";
+import Upload from "./components/Upload/Upload";
+import Export from "./components/Export/Export";
+import Graph from "./components/Graph/Graph";
+import Log from "./components/Log/Log";
 
 
 function App() {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { supabase } from '../SupabaseClient';
+import { supabase } from "../../SupabaseClient";
 import { useSearchParams } from "react-router-dom"; // ADD THIS
 import "./BaymaxChat.css";
 
