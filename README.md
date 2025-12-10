@@ -144,7 +144,7 @@ pip install coverage
 coverage run -m unittest discover tests/
 
 # View coverage report in terminal
-coverage report -m
+coverage report
 
 # Generate HTML coverage report
 coverage html

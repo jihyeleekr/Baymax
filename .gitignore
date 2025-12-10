@@ -8,3 +8,8 @@ build/
 dist/
 .DS_Store
 backend/uploads/prescriptions/
+
+# Coverage reports
+.coverage
+htmlcov/
+*.cover
