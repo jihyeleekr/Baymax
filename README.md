@@ -1,6 +1,6 @@
 # Baymax Healthcare Dashboard
 
-Full-stack healthcare app with medication reminders, document upload + AI chat, health logging, data visualization, and data export.
+Full-stack healthcare app with document upload + AI chat, health logging, data visualization, and data export.
 
 ## Quick Start
 
@@ -116,7 +116,8 @@ See [`SETUP.md`](SETUP.md) for detailed installation instructions.
 ## Features
 
 - **AI Chat**: Talk to Baymax about your health using Gemini AI
-- **Document Upload**: Upload prescriptions (PDF/images) with OCR processing
+- **Document Upload**: Upload medical documents (PDF/images) with OCR processing
+  - **Note**: Prescription uploads are not permitted. Other medical documents (lab reports, medical records, etc.) are accepted.
 - **Health Logging**: Track medications, sleep, vitals, mood, and symptoms
 - **Data Visualization**: View trends with interactive graphs (Recharts)
 - **Data Export**: Export health data in CSV, PDF, or JSON formats
