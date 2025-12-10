@@ -372,3 +372,81 @@
   color: #fff;
   cursor: pointer;
 }
+
+/* ========================= */
+/*   RESPONSIVE ADJUSTMENTS  */
+/* ========================= */
+
+/* Medium screens (tablets, small laptops) */
+/* Small screens (tablets & large phones) */
+@media (max-width: 768px) {
+  .calendar-app {
+    width: 100%;
+    max-width: 100%;
+    aspect-ratio: auto;
+    flex-direction: column;
+    row-gap: 2rem;
+    padding: 1.6rem 1.4rem;
+    border-width: 0.6rem;
+    /* allow inner sections to scroll */
+    overflow: visible;
+  }
+
+  .calendar,
+  .events {
+    width: 100%;
+  }
+
+  /* 🔽 make the log list scrollable on small screens */
+  .events {
+    padding: 1.4rem 0 0;
+    max-height: 55vh;
+    /* you can tweak 55 → 50 or 60 */
+    overflow-y: auto;
+  }
+
+  .heading {
+    font-size: clamp(2.4rem, 6vw, 3.4rem);
+    text-align: left;
+  }
+
+  .navigate-date {
+    margin: 1.8rem 0;
+  }
+
+  .event {
+    padding: 1.2rem 0.8rem;
+  }
+
+  .event-date-wrapper {
+    width: 30%;
+  }
+
+  .event-text {
+    width: 70%;
+    padding: 0 2rem 0 1rem;
+  }
+
+  .event-buttons {
+    right: 0.5rem;
+  }
+
+  /* Popup takes most of the screen */
+  .event-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 94vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 2rem 1.6rem 2.4rem;
+  }
+
+  .popup-row,
+  .popup-row-two {
+    flex-direction: column;
+    align-items: stretch;
+    row-gap: 1rem;
+  }
+}
