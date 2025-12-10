@@ -13,7 +13,8 @@
 .upload-container {
   width: 100%;
   max-width: 1100px;
-  background: rgba(12, 20, 30, 0.96); /* softer blue-grey instead of pure black */
+  background: rgba(12, 20, 30, 0.96);
+  /* softer blue-grey instead of pure black */
   border-radius: 24px;
   padding: 2rem 2.5rem;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
@@ -34,7 +35,25 @@
 
 .upload-header p {
   color: #a0aec0;
-  font-size: 0.95rem;
+  font-size: 1.2rem;
+}
+
+.upload-header .privacy-warning {
+  font-size: 1.6rem;
+  /* bigger text */
+  font-weight: 700;
+  /* bold */
+  color: #fef3c7;
+  /* light yellow text */
+  background: rgba(234, 179, 8, 0.18);
+  /* soft yellow background */
+  padding: 0.9rem 1.1rem;
+  border-left: 6px solid #fbbf24;
+  /* warning bar */
+  border-radius: 10px;
+  margin-top: 1.4rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
 }
 
 /* File Upload Section */
@@ -130,8 +149,13 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .loading-section p {
@@ -202,6 +226,7 @@
 
 .warnings-list li {
   border-left: 3px solid #facc15;
+  font-size: 1.5rem;
 }
 
 /* Explanation Card */

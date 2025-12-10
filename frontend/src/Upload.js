@@ -105,13 +105,14 @@ function Upload() {
           <div className="upload-section">
             {/* 📢 Safety Warning Card Above Upload */}
             <div className="result-card warnings-card" style={{ marginBottom: "1rem" }}>
-              <h2>⚠️ Before You Upload</h2>
+              <h2>⚠️ Important Notice</h2>
               <ul className="warnings-list">
                 <li>Only upload sample or de-identified medication documents.</li>
                 <li>
                   Do <strong>not</strong> upload real prescriptions or anything with your
                   personal health information (PHI).
                 </li>
+                <li>The system and developers are <strong>NOT RESPONSIBLE</strong> for any personal or confidential information a user decides to upload.</li>
                 <li>Allowed formats: PDF, PNG, JPG • Max size: 5MB.</li>
               </ul>
             </div>
@@ -158,7 +159,7 @@ function Upload() {
             </div>
 
             {/* Medications */}
-            
+
 
             {/* Warnings */}
             {prescription.warnings && prescription.warnings.length > 0 && (
@@ -173,17 +174,17 @@ function Upload() {
             )}
 
 
-           {/* Full report */}
-{prescription.allergies && prescription.allergies.length > 0 && (
-  <div className="result-card allergies-card">
-    <h2>Raw Data</h2>
-    <p className="allergies-text">
-      {prescription.allergies.join(" ")}
-    </p>
-  </div>
-)}
+            {/* Full report */}
+            {prescription.allergies && prescription.allergies.length > 0 && (
+              <div className="result-card allergies-card">
+                <h2>Raw Data</h2>
+                <p className="allergies-text">
+                  {prescription.allergies.join(" ")}
+                </p>
+              </div>
+            )}
 
-       
+
 
             {/* AI Explanation */}
             <div className="result-card explanation-card">
